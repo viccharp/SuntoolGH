@@ -4,7 +4,7 @@ using Grasshopper.Kernel;
 
 namespace SunToolsGH
 {
-    public class MyProject3Info : GH_AssemblyInfo
+    public class SunToolsGHInfo : GH_AssemblyInfo
     {
         public override string Name
         {
