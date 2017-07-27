@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-
 using Grasshopper.Kernel;
-using Rhino.Geometry;
-using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
+using Rhino.Geometry;
 
-namespace SunTools.Component
+namespace SunTools.Auxilaries
 {
     public class RegionDiff : GH_Component
     {

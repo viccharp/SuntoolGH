@@ -2,7 +2,7 @@
 using System.Drawing;
 using Grasshopper.Kernel;
 
-namespace SunToolsGH
+namespace SunTools
 {
     public class SunToolsGHInfo : GH_AssemblyInfo
     {
