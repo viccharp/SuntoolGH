@@ -50,8 +50,8 @@ namespace SunTools.Component
         /// <summary>
         /// This is the method that actually does the work.
         /// </summary>
-        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
-        protected override void SolveInstance(IGH_DataAccess DA)
+        /// <param name="da">The DA object is used to retrieve from inputs and store in outputs.</param>
+        protected override void SolveInstance(IGH_DataAccess da)
         {
             // Definition of input variables
             var north = new Vector3d();
@@ -70,11 +70,11 @@ namespace SunTools.Component
 
             
             // Populating the list input variables
-            if (!DA.GetData(0, ref north)) { return; }
-            if (!DA.GetDataList(1, sazi)) { return; }
-            if (!DA.GetDataList(2, salt)) { return; }
-            if (!DA.GetDataList(3, shours)) { return; }
-            if (!DA.GetDataList(4, pmesh)) { return; }
+            if (!da.GetData(0, ref north)) { return; }
+            if (!da.GetDataList(1, sazi)) { return; }
+            if (!da.GetDataList(2, salt)) { return; }
+            if (!da.GetDataList(3, shours)) { return; }
+            if (!da.GetDataList(4, pmesh)) { return; }
 
             // Evaluate if North == null
             if (north == null)
@@ -86,10 +86,9 @@ namespace SunTools.Component
             if (!north.IsPerpendicularTo(new Vector3d(0.0, 0.0, 1.0)))
             {
                 var xyworld = new Plane(new Point3d(0.0, 0.0, 0.0), new Vector3d(0.0, 0.0, 1.0));
-                var proj_xyworld = new Transform();
-                proj_xyworld = Transform.PlanarProjection(xyworld);
+                var projXyworld = Transform.PlanarProjection(xyworld);
 
-                north.Transform(proj_xyworld);
+                north.Transform(projXyworld);
                 north.Unitize();
             }
             else
@@ -110,18 +109,18 @@ namespace SunTools.Component
             if (!(sazi.Count==salt.Count || sazi.Count==shours.Count || salt.Count==shours.Count)){ return;}
 
             // start the analysis
-            int scount = sazi.Count;
-            int mcount = pmesh.Count;
+            var scount = sazi.Count;
+            var mcount = pmesh.Count;
 
             //for each input mesh
             for (int i=0; i < mcount; i++)
             {
                 GH_Path p1 = new GH_Path(i);
-                var current_mesh = pmesh[i];
-                var current_centroid = new Point3d(AreaMassProperties.Compute(current_mesh).Centroid);
-                current_mesh.FaceNormals.ComputeFaceNormals();
-                var current_normal = current_mesh.FaceNormals[0];
-                current_normal.Unitize();
+                var currentMesh = pmesh[i];
+                var currentCentroid = new Point3d(AreaMassProperties.Compute(currentMesh).Centroid);
+                currentMesh.FaceNormals.ComputeFaceNormals();
+                var currentNormal = currentMesh.FaceNormals[0];
+                currentNormal.Unitize();
 
 
                 //for each input sun vector
@@ -130,36 +129,36 @@ namespace SunTools.Component
                     GH_Path p2 = new GH_Path(i, j);
                     
                     //convert sun angles to radians 
-                    var current_sazi_r = RhinoMath.ToRadians(sazi[j]);
-                    var current_salt_r = RhinoMath.ToRadians(salt[j]);
+                    var currentSaziR = RhinoMath.ToRadians(sazi[j]);
+                    var currentSaltR = RhinoMath.ToRadians(salt[j]);
                     
                     // convert to clockwise angle values
-                    current_sazi_r = 2 * Math.PI - current_sazi_r;
-                    current_salt_r = 2 * Math.PI - current_salt_r;
+                    currentSaziR = 2 * Math.PI - currentSaziR;
+                    currentSaltR = 2 * Math.PI - currentSaltR;
 
-                    var current_sazi = new GH_Number(RhinoMath.ToDegrees(current_sazi_r));
-                    var current_salt = new GH_Number(RhinoMath.ToDegrees(current_salt_r));
-                    var current_shour = new GH_Number(shours[j]);
+                    var currentSazi = new GH_Number(RhinoMath.ToDegrees(currentSaziR));
+                    var currentSalt = new GH_Number(RhinoMath.ToDegrees(currentSaltR));
+                    var currentShour = new GH_Number(shours[j]);
 
 
                     //create sun vector
-                    var current_sun = new Vector3d(north.X - current_centroid.X, north.Y - current_centroid.Y, north.Z - current_centroid.Z);
-                    current_sun.Unitize();
+                    var currentSun = new Vector3d(north.X - currentCentroid.X, north.Y - currentCentroid.Y, north.Z - currentCentroid.Z);
+                    currentSun.Unitize();
                     //current_sun.Reverse();
-                    current_sun.Rotate(current_salt_r, Vector3d.CrossProduct(new Vector3d(0.0, 0.0, 1.0),north));
-                    current_sun.Rotate(current_sazi_r, new Vector3d(0.0, 0.0, 1.0));
+                    currentSun.Rotate(currentSaltR, Vector3d.CrossProduct(new Vector3d(0.0, 0.0, 1.0),north));
+                    currentSun.Rotate(currentSaziR, new Vector3d(0.0, 0.0, 1.0));
                     //current_sun.Reverse();
 
                     // Dot product mesh normal current_sun
-                    var dsn = Vector3d.Multiply(current_normal, current_sun);
+                    var dsn = Vector3d.Multiply(currentNormal, currentSun);
 
 
                     if (dsn > 0)
                     {
-                        siftazi.Append(current_sazi,p1);
-                        siftalt.Append(current_salt,p1);
-                        sifthours.Append(current_shour, p1);
-                        svector.Append(new GH_Vector(current_sun));
+                        siftazi.Append(currentSazi,p1);
+                        siftalt.Append(currentSalt,p1);
+                        sifthours.Append(currentShour, p1);
+                        svector.Append(new GH_Vector(currentSun));
 
                     }
 
@@ -172,10 +171,10 @@ namespace SunTools.Component
 
             
 
-            DA.SetDataTree(0, siftazi);
-            DA.SetDataTree(1, siftalt);
-            DA.SetDataTree(2, sifthours);
-            DA.SetDataTree(3, svector);
+            da.SetDataTree(0, siftazi);
+            da.SetDataTree(1, siftalt);
+            da.SetDataTree(2, sifthours);
+            da.SetDataTree(3, svector);
 
 
         }
