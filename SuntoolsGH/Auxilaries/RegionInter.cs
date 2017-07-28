@@ -42,78 +42,88 @@ namespace SunTools.Auxilaries
         /// <summary>
         /// This is the method that actually does the work.
         /// </summary>
-        /// <param name="da">The DA object is used to retrieve from inputs and store in outputs.</param>
-        protected override void SolveInstance(IGH_DataAccess da)
+        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
+        protected override void SolveInstance(IGH_DataAccess DA)
         {
             var curveA = new List<Curve>();
             Curve curveB = new PolylineCurve();
-            var intPlane = new Plane();
+            var Int_plane = new Plane();
 
             double tol = 0.001;
 
             var res = new List<GH_Curve>();
-            var ares = new List<GH_Number>();
+            var Ares = new List<GH_Number>();
 
-            if (!da.GetDataList(0, curveA)) { return; }
-            if (!da.GetData(1,ref curveB)) { return; }
-            if (!da.GetData(2,ref intPlane)) { return; }
+            if (!DA.GetDataList(0, curveA)) { return; }
+            if (!DA.GetData(1,ref curveB)) { return; }
+            if (!DA.GetData(2,ref Int_plane)) { return; }
             
             for (int i = 0; i < curveA.Count; i++)
             {
-                RegionContainment status = Curve.PlanarClosedCurveRelationship(curveA[i], curveB, intPlane, tol);
+                RegionContainment status = Curve.PlanarClosedCurveRelationship(curveA[i], curveB, Int_plane, tol);
 
-                switch (status)
+                if (status == RegionContainment.Disjoint)
                 {
-                    case RegionContainment.Disjoint:
+                    res.Add(null);
+                    Ares.Add(new GH_Number(0.0));
+                }
+                else if (status == RegionContainment.MutualIntersection)
+                {
+                    var current_intersection = Curve.CreateBooleanIntersection(curveA[i], curveB);
+                    // test needed to determine if there is one or more distinct resulting curves
+
+                    if (current_intersection.Length == 0)
+                    {
                         res.Add(null);
-                        ares.Add(new GH_Number(0.0));
-                        break;
-                    case RegionContainment.MutualIntersection:
-                        var currentIntersection = Curve.CreateBooleanIntersection(curveA[i], curveB);
-                        // test needed to determine if there is one or more distinct resulting curves
-
-                        switch (currentIntersection.Length)
+                        Ares.Add(new GH_Number(0.0));
+                    }
+                    
+                    else if (current_intersection.Length == 1)
+                    {
+                        res.Add(new GH_Curve(current_intersection[0]));
+                        var propRES = AreaMassProperties.Compute(current_intersection[0]);
+                        Ares.Add(new GH_Number(propRES.Area));
+                    }
+                    else
+                    {
+                        for (int j=0;j< current_intersection.Length;j++)
                         {
-                            case 0:
-                                res.Add(null);
-                                ares.Add(new GH_Number(0.0));
-                                break;
-                            case 1:
-                                res.Add(new GH_Curve(currentIntersection[0]));
-                                ares.Add(new GH_Number(AreaMassProperties.Compute(currentIntersection[0]).Area));
-                                break;
-                            default:
-                                for (int j=0;j< currentIntersection.Length;j++)
-                                {
-                                    res.Add(new GH_Curve(currentIntersection[j]));
-                                    ares.Add(new GH_Number(9999999));
-                                }
-                                break;
+                            res.Add(new GH_Curve(current_intersection[j]));
+                            Ares.Add(new GH_Number(9999999));
                         }
-                        break;
-                    case RegionContainment.AInsideB:
-                        if (curveA[i].IsClosed)
-                        {
-                            res.Add(new GH_Curve(curveA[i]));
+                        
+                    }
 
-                            ares.Add(new GH_Number(AreaMassProperties.Compute(curveA[i]).Area));
-                        }
-                        else
-                        {
-                            res.Add(new GH_Curve(curveA[i]));
-                            ares.Add(null);
-                        }
-                        break;
-                    case RegionContainment.BInsideA:
-                        res.Add(new GH_Curve(curveB));
+                }
+                else if (status == RegionContainment.AInsideB)
+                {
+                    if (curveA[i].IsClosed)
+                    {
+                        res.Add(new GH_Curve(curveA[i]));
 
-                        ares.Add(new GH_Number(AreaMassProperties.Compute(curveB).Area));
-                        break;
+                        var propRES = AreaMassProperties.Compute(curveA[i]);
+                        Ares.Add(new GH_Number(propRES.Area));
+                    }
+                    else
+                    {
+                        res.Add(new GH_Curve(curveA[i]));
+                        Ares.Add(null);
+                    }
+                }
+
+                else if (status == RegionContainment.BInsideA)
+                {
+                    
+                    res.Add(new GH_Curve(curveB));
+
+                    var propRES = AreaMassProperties.Compute(curveB);
+                    Ares.Add(new GH_Number(propRES.Area));
+                  
                 }
             }
 
-            da.SetDataList(0, res);
-            da.SetDataList(1, ares);
+            DA.SetDataList(0, res);
+            DA.SetDataList(1, Ares);
 
         }
 

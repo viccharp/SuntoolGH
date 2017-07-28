@@ -2,9 +2,9 @@
 using System.Drawing;
 using Grasshopper.Kernel;
 
-namespace SunTools
+namespace SunToolsGH
 {
-    public class SunToolsGHInfo : GH_AssemblyInfo
+    public class MyProject3Info : GH_AssemblyInfo
     {
         public override string Name
         {
