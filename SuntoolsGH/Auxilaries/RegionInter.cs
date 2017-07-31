@@ -16,7 +16,7 @@ namespace SunTools.Auxilaries
         public RegionInter()
           : base("Region Inter", "RInter",
               "Computes the boolean intersection of co - planar curves and the area of the resulting curve",
-              "Victor", "Meshtools")
+              "SunTools", "Utilities")
         {
         }
 
@@ -65,65 +65,61 @@ namespace SunTools.Auxilaries
             {
                 RegionContainment status = Curve.PlanarClosedCurveRelationship(curveA[i], curveB, Int_plane, tol);
 
-                if (status == RegionContainment.Disjoint)
+                switch (status)
                 {
-                    res.Add(null);
-                    Ares.Add(new GH_Number(0.0));
-                    comment.Add("Disjoint");
-                }
-                else if (status == RegionContainment.MutualIntersection)
-                {
-                    var current_intersection = Curve.CreateBooleanIntersection(curveA[i], curveB);
-                    // test needed to determine if there is one or more distinct resulting curves
-
-                    if (current_intersection.Length == 0)
-                    {
+                    case RegionContainment.Disjoint:
                         res.Add(null);
                         Ares.Add(new GH_Number(0.0));
-                        comment.Add("MutualIntersection, line intersection");
-                    }
-                    
-                    else if (current_intersection.Length == 1)
-                    {
-                        res.Add(new GH_Curve(current_intersection[0]));
-                        Ares.Add(new GH_Number(AreaMassProperties.Compute(current_intersection[0]).Area));
-                        comment.Add("MutualIntersection, 1 resulting closed curve");
-                    }
-                    else
-                    {
-                        for (int j=0;j< current_intersection.Length;j++)
+                        comment.Add("Disjoint");
+                        break;
+                    case RegionContainment.MutualIntersection:
+                        var current_intersection = Curve.CreateBooleanIntersection(curveA[i], curveB);
+                        // test needed to determine if there is one or more distinct resulting curves
+
+                        if (current_intersection.Length == 0)
                         {
-                            res.Add(new GH_Curve(current_intersection[j]));
+                            res.Add(null);
+                            Ares.Add(new GH_Number(0.0));
+                            comment.Add("MutualIntersection, line intersection");
                         }
-                        Ares.Add(new GH_Number(AreaMassProperties.Compute(current_intersection).Area));
-                        comment.Add("MutualIntersection, "+current_intersection.Length.ToString()+" resulting closed curves");
-                    }
+                    
+                        else if (current_intersection.Length == 1)
+                        {
+                            res.Add(new GH_Curve(current_intersection[0]));
+                            Ares.Add(new GH_Number(AreaMassProperties.Compute(current_intersection[0]).Area));
+                            comment.Add("MutualIntersection, 1 resulting closed curve");
+                        }
+                        else
+                        {
+                            for (int j=0;j< current_intersection.Length;j++)
+                            {
+                                res.Add(new GH_Curve(current_intersection[j]));
+                            }
+                            Ares.Add(new GH_Number(AreaMassProperties.Compute(current_intersection).Area));
+                            comment.Add("MutualIntersection, "+current_intersection.Length.ToString()+" resulting closed curves");
+                        }
+                        break;
+                    case RegionContainment.AInsideB:
+                        if (curveA[i].IsClosed)
+                        {
+                            res.Add(new GH_Curve(curveA[i]));
 
-                }
-                else if (status == RegionContainment.AInsideB)
-                {
-                    if (curveA[i].IsClosed)
-                    {
-                        res.Add(new GH_Curve(curveA[i]));
+                            Ares.Add(new GH_Number(AreaMassProperties.Compute(curveA[i]).Area));
+                            comment.Add("A Inside B, resulting curve is closed");
+                        }
+                        else
+                        {
+                            res.Add(new GH_Curve(curveA[i]));
+                            Ares.Add(null);
+                            comment.Add("A Inside B,  resulting curve is NOT closed");
+                        }
+                        break;
+                    case RegionContainment.BInsideA:
+                        res.Add(new GH_Curve(curveB));
 
-                        Ares.Add(new GH_Number(AreaMassProperties.Compute(curveA[i]).Area));
-                        comment.Add("A Inside B, resulting curve is closed");
-                    }
-                    else
-                    {
-                        res.Add(new GH_Curve(curveA[i]));
-                        Ares.Add(null);
-                        comment.Add("A Inside B,  resulting curve is NOT closed");
-                    }
-                }
-
-                else if (status == RegionContainment.BInsideA)
-                {
-                    res.Add(new GH_Curve(curveB));
-
-                    Ares.Add(new GH_Number(AreaMassProperties.Compute(curveB).Area));
-                    comment.Add("B Inside A,  resulting curve is  closed");
-
+                        Ares.Add(new GH_Number(AreaMassProperties.Compute(curveB).Area));
+                        comment.Add("B Inside A,  resulting curve is  closed");
+                        break;
                 }
             }
 
