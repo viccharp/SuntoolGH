@@ -35,11 +35,11 @@ namespace SunTools.Component
             pManager.AddTextParameter("Summer Weight String", "summerCoef", "Coeficient for the analysis in the Summer period, given as text. The order should be Shade, View and Glare", GH_ParamAccess.item);
 
             //Assign initial default data to the input parameters.
-            var param0 = (Param_Number) pManager[0];
-            var param1 = (Param_Number) pManager[1];
-            var param2 = (Param_Number) pManager[2];
-            var param3 = (Param_String) pManager[3];
-            var param4 = (Param_String) pManager[4];
+            Param_Number param0 = (Param_Number) pManager[0];
+            Param_Number param1 = (Param_Number) pManager[1];
+            Param_Number param2 = (Param_Number) pManager[2];
+            Param_String param3 = (Param_String) pManager[3];
+            Param_String param4 = (Param_String) pManager[4];
 
 
             //Assign default sun hours
@@ -107,11 +107,12 @@ namespace SunTools.Component
 
             for (int i = 0; i < nshour; i++)
             {
-                if (sunhours[i] > startPeriod) 
+                double current_hour = sunhours[i];
+                if (current_hour > startPeriod) 
                 {
                     SCoefs.Append(new GH_String(winterCoef));
                 }
-                else if (sunhours[i] < endPeriod)
+                else if (current_hour < endPeriod)
                 {
                     SCoefs.Append(new GH_String(winterCoef));
                 }
