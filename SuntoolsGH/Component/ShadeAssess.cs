@@ -29,7 +29,6 @@ namespace SunTools.Component
             pManager.AddMeshParameter("Shade surface", "mshade","A list of shade meshes to be evaluated for direct shade coverage",GH_ParamAccess.list);
             pManager.AddVectorParameter("Projection direction vector", "dir", "The vectors for shading evaluation", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Launch the analysis", "start", "If bool is True: analysis is running, if bool is False: analysis stopped", GH_ParamAccess.item);
-
         }
 
         /// <summary>
@@ -76,7 +75,8 @@ namespace SunTools.Component
                 panel_outline = panel_outline_list[0];
             }
 
-            Plane.FitPlaneToPoints(panel_outline, out Plane panel_plane);
+            Plane panel_plane;
+            Plane.FitPlaneToPoints(panel_outline, out panel_plane);
 
             //create transformation for reverse projection of the difference of outline 
             //projectback = Transform.PlanarProjection(panel_plane);
