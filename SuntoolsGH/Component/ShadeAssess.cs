@@ -52,7 +52,7 @@ namespace SunTools.Component
             var panel = new Mesh();
             var mshade = new List<Mesh>();
             var vsun = new List<Vector3d>();
-            var run = new Boolean();
+            var run = new bool();
 
             DA.GetData(0, ref panel);
             DA.GetDataList(1, mshade);

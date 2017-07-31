@@ -37,6 +37,8 @@ namespace SunTools.Auxilaries
         {
             pManager.AddCurveParameter("Resulting intersection", "Result", "Region resulting from the Intersection", GH_ParamAccess.list);
             pManager.AddNumberParameter("Area of resulting region", "Area_result", "Area of the region resulting from Intersection", GH_ParamAccess.list);
+            pManager.AddTextParameter("Comment on intersection type", "outCom",
+                "type of intersection between the two curves: Disjoint, MutualIntersection(and number of resulting disjoint closed curves), AinsideB, BinsideA",GH_ParamAccess.list);
         }
 
         /// <summary>
@@ -53,6 +55,7 @@ namespace SunTools.Auxilaries
 
             var res = new List<GH_Curve>();
             var Ares = new List<GH_Number>();
+            var comment=new List<string>();
 
             if (!DA.GetDataList(0, curveA)) { return; }
             if (!DA.GetData(1,ref curveB)) { return; }
@@ -66,6 +69,7 @@ namespace SunTools.Auxilaries
                 {
                     res.Add(null);
                     Ares.Add(new GH_Number(0.0));
+                    comment.Add("Disjoint");
                 }
                 else if (status == RegionContainment.MutualIntersection)
                 {
@@ -76,22 +80,23 @@ namespace SunTools.Auxilaries
                     {
                         res.Add(null);
                         Ares.Add(new GH_Number(0.0));
+                        comment.Add("MutualIntersection, line intersection");
                     }
                     
                     else if (current_intersection.Length == 1)
                     {
                         res.Add(new GH_Curve(current_intersection[0]));
-                        var propRES = AreaMassProperties.Compute(current_intersection[0]);
-                        Ares.Add(new GH_Number(propRES.Area));
+                        Ares.Add(new GH_Number(AreaMassProperties.Compute(current_intersection[0]).Area));
+                        comment.Add("MutualIntersection, 1 resulting closed curve");
                     }
                     else
                     {
                         for (int j=0;j< current_intersection.Length;j++)
                         {
                             res.Add(new GH_Curve(current_intersection[j]));
-                            Ares.Add(new GH_Number(9999999));
                         }
-                        
+                        Ares.Add(new GH_Number(AreaMassProperties.Compute(current_intersection).Area));
+                        comment.Add("MutualIntersection, "+current_intersection.Length.ToString()+" resulting closed curves");
                     }
 
                 }
@@ -101,29 +106,30 @@ namespace SunTools.Auxilaries
                     {
                         res.Add(new GH_Curve(curveA[i]));
 
-                        var propRES = AreaMassProperties.Compute(curveA[i]);
-                        Ares.Add(new GH_Number(propRES.Area));
+                        Ares.Add(new GH_Number(AreaMassProperties.Compute(curveA[i]).Area));
+                        comment.Add("A Inside B, resulting curve is closed");
                     }
                     else
                     {
                         res.Add(new GH_Curve(curveA[i]));
                         Ares.Add(null);
+                        comment.Add("A Inside B,  resulting curve is NOT closed");
                     }
                 }
 
                 else if (status == RegionContainment.BInsideA)
                 {
-                    
                     res.Add(new GH_Curve(curveB));
 
-                    var propRES = AreaMassProperties.Compute(curveB);
-                    Ares.Add(new GH_Number(propRES.Area));
-                  
+                    Ares.Add(new GH_Number(AreaMassProperties.Compute(curveB).Area));
+                    comment.Add("B Inside A,  resulting curve is  closed");
+
                 }
             }
 
             DA.SetDataList(0, res);
             DA.SetDataList(1, Ares);
+            DA.SetDataList(2, comment);
 
         }
 

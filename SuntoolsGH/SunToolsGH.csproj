@@ -110,11 +110,10 @@
     <Compile Include="Component\ShadeAssess.cs" />
     <Compile Include="Auxilaries\RegionDiff.cs" />
     <Compile Include="Component\SunSifting.cs" />
-    <Compile Include="MyProject3Info.cs" />
+    <Compile Include="SuntoolsGHInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="ClassDiagram1.cd" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup />
