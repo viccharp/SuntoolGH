@@ -29,7 +29,6 @@ namespace SunTools.Component
             pManager.AddMeshParameter("Shade surface", "mshade","A list of shade meshes to be evaluated for direct shade coverage",GH_ParamAccess.list);
             pManager.AddVectorParameter("Projection direction vector", "dir", "The vectors for shading evaluation", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Launch the analysis", "start", "If bool is True: analysis is running, if bool is False: analysis stopped", GH_ParamAccess.item);
-
         }
 
         /// <summary>
