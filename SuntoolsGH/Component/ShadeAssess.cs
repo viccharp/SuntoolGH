@@ -14,9 +14,9 @@ namespace SunTools.Component
         /// Initializes a new instance of the MyComponent1 class.
         /// </summary>
         public ShadeAssess()
-          : base("Evaluate shade on façade panel", "ShadeAssess",
-              "Projection of Shading surface on ",
-              "SunTools", "Shading Tools")
+            : base("Evaluate shade on façade panel", "ShadeAssess",
+                "Projection of Shading surface on ",
+                "SunTools", "Shading Tools")
         {
         }
 
@@ -26,7 +26,7 @@ namespace SunTools.Component
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddMeshParameter("Façade Panel", "mfpanel", "A list of planar panels representing part of a façade", GH_ParamAccess.item);
-            pManager.AddMeshParameter("Shade surface", "mshade","A list of shade meshes to be evaluated for direct shade coverage",GH_ParamAccess.list);
+            pManager.AddMeshParameter("Shade surface", "mshade", "A list of shade meshes to be evaluated for direct shade coverage", GH_ParamAccess.list);
             pManager.AddVectorParameter("Projection direction vector", "dir", "The vectors for shading evaluation", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Launch the analysis", "start", "If bool is True: analysis is running, if bool is False: analysis stopped", GH_ParamAccess.item);
 
@@ -52,23 +52,29 @@ namespace SunTools.Component
             var panel = new Mesh();
             var mshade = new List<Mesh>();
             var vsun = new List<Vector3d>();
-            var run = new bool();
+            var run = new Boolean();
 
             DA.GetData(0, ref panel);
-            DA.GetDataList(1,  mshade);
+            DA.GetDataList(1, mshade);
             DA.GetDataList(2, vsun);
             DA.GetData(3, ref run);
 
-            if (run==false) { return; }
+            if (run == false) { return; }
 
-            
+
+
+            //output variables
+            var shade_outline = new GH_Structure<GH_Curve>();
+            var shade_areas = new GH_Structure<GH_Number>();
+
             //temporary output variables
             var res = new GH_Structure<GH_Curve>();
             var Ares = new GH_Structure<GH_Number>();
-            
-             
-            var panel_outline_list= new List<Polyline>(panel.GetNakedEdges());
-            Polyline panel_outline;
+
+
+            var panel_outline_list = new List<Polyline>(panel.GetNakedEdges());
+            var panel_outline_gh = new GH_Curve();
+            var panel_outline = new Polyline();
 
             if (panel_outline_list.Count > 1) { return; }
             else
@@ -76,7 +82,10 @@ namespace SunTools.Component
                 panel_outline = panel_outline_list[0];
             }
 
-            Plane.FitPlaneToPoints(panel_outline, out Plane panel_plane);
+            var panel_plane = new Plane();
+            Plane.FitPlaneToPoints(panel_outline, out panel_plane);
+
+            var projectback = new Transform();
 
             //create transformation for reverse projection of the difference of outline 
             //projectback = Transform.PlanarProjection(panel_plane);
@@ -84,45 +93,51 @@ namespace SunTools.Component
 
             for (int i = 0; i < mshade.Count; i++)
             {
-                var current_shade = mshade[i];
-                var current_shade_outline= new Polyline((new List<Polyline>(current_shade.GetNakedEdges()))[0]);
+                Mesh current_shade = mshade[i];
+                var current_shade_outline = new Polyline((new List<Polyline>(current_shade.GetNakedEdges()))[0]);
                 var p1 = new GH_Path(i);
 
 
                 for (int j = 0; j < vsun.Count; j++)
                 {
-                    var currentSunPlane = new Plane(panel_outline[0],vsun[j]);
-                    var projectsun = Transform.PlanarProjection(currentSunPlane);
+                    var current_sun_plane = new Plane(panel_outline[0], vsun[j]);
+                    var projectsun = new Transform();
+                    projectsun = Transform.PlanarProjection(current_sun_plane);
                     //projectsun.TryGetInverse(out projectback);
-                    var projectback = GetObliqueTransformation(panel_plane, vsun[j]);
+                    projectback = GetObliqueTransformation(panel_plane, vsun[j]);
 
 
-                    new Polyline(panel_outline).Transform(projectsun);
-                    new Polyline(current_shade_outline).Transform(projectsun);
+                    var current_panel_sun_proj = new Polyline(panel_outline);
+                    var current_shade_sun_proj = new Polyline(current_shade_outline);
+                    current_panel_sun_proj.Transform(projectsun);
+                    current_shade_sun_proj.Transform(projectsun);
 
-                    var temp_current_diff = Curve.CreateBooleanDifference(new Polyline(panel_outline).ToNurbsCurve(), new Polyline(current_shade_outline).ToNurbsCurve());
+                    var temp_current_diff = Curve.CreateBooleanDifference(current_panel_sun_proj.ToNurbsCurve(), current_shade_sun_proj.ToNurbsCurve());
 
                     if (temp_current_diff.Length == 0)
                     {
-                        
-                        res.Append(null,p1);
-                        Ares.Append(null,p1);
+
+                        res.Append(null, p1);
+                        Ares.Append(null, p1);
 
                     }
                     else
                     {
-                        if (temp_current_diff[0] != null)
-                        {
-                            temp_current_diff[0].Transform(projectback);
 
-                            res.Append(data: new GH_Curve(temp_current_diff[0]), path: p1);
-                            Ares.Append(data: new GH_Number(AreaMassProperties.Compute(temp_current_diff[0]).Area), path: p1);
-                        }
-                        else
+                        var current_diff = temp_current_diff[0];
+                        if (current_diff == null)
                         {
                             res.Append(null, p1);
                             Ares.Append(null, p1);
                         }
+                        else
+                        {
+                            current_diff.Transform(projectback);
+
+                            res.Append(new GH_Curve(current_diff), p1);
+                            Ares.Append(new GH_Number(AreaMassProperties.Compute(current_diff).Area), p1);
+                        }
+
                     }
 
 
@@ -133,8 +148,8 @@ namespace SunTools.Component
 
             }
 
-            var shade_outline = res;
-            var shade_areas = Ares;
+            shade_outline = res;
+            shade_areas = Ares;
 
             DA.SetDataTree(0, shade_outline);
             DA.SetDataTree(1, shade_areas);
@@ -165,16 +180,17 @@ namespace SunTools.Component
         public Transform GetObliqueTransformation(Plane Pln, Vector3d V)
         {
 
-            var oblique = new Transform(1);
-            var eq = Pln.GetPlaneEquation();
-            var a = eq[0];
-            var b = eq[1];
-            var c = eq[2];
-            var d = eq[3];
-            var dx = V.X;
-            var dy = V.Y;
-            var dz = V.Z;
-            var D = a * dx + b * dy + c * dz;
+            Transform oblique = new Transform(1);
+            double[] eq = Pln.GetPlaneEquation();
+            double a, b, c, d, dx, dy, dz, D;
+            a = eq[0];
+            b = eq[1];
+            c = eq[2];
+            d = eq[3];
+            dx = V.X;
+            dy = V.Y;
+            dz = V.Z;
+            D = a * dx + b * dy + c * dz;
             oblique.M00 = 1 - a * dx / D;
             oblique.M10 = -a * dy / D;
             oblique.M20 = -a * dz / D;
