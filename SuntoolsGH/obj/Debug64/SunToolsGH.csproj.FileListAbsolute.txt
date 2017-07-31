@@ -20,3 +20,4 @@ C:\AppData\Roaming\Grasshopper\Libraries\SunTools.pdb
 C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunToolsGH.csprojResolveAssemblyReference.cache
 C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.dll
 C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.pdb
+C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunToolsGH.csprojResolveAssemblyReference.cache

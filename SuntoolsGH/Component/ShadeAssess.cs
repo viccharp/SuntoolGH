@@ -14,9 +14,9 @@ namespace SunTools.Component
         /// Initializes a new instance of the MyComponent1 class.
         /// </summary>
         public ShadeAssess()
-          : base("Evaluate shade on façade panel", "ShadeAssess",
-              "Projection of Shading surface on ",
-              "SunTools", "Shading Tools")
+            : base("Evaluate shade on façade panel", "ShadeAssess",
+                "Projection of Shading surface on ",
+                "SunTools", "Shading Tools")
         {
         }
 
@@ -26,9 +26,10 @@ namespace SunTools.Component
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddMeshParameter("Façade Panel", "mfpanel", "A list of planar panels representing part of a façade", GH_ParamAccess.item);
-            pManager.AddMeshParameter("Shade surface", "mshade","A list of shade meshes to be evaluated for direct shade coverage",GH_ParamAccess.list);
+            pManager.AddMeshParameter("Shade surface", "mshade", "A list of shade meshes to be evaluated for direct shade coverage", GH_ParamAccess.list);
             pManager.AddVectorParameter("Projection direction vector", "dir", "The vectors for shading evaluation", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Launch the analysis", "start", "If bool is True: analysis is running, if bool is False: analysis stopped", GH_ParamAccess.item);
+
         }
 
         /// <summary>
@@ -54,11 +55,11 @@ namespace SunTools.Component
             var run = new Boolean();
 
             DA.GetData(0, ref panel);
-            DA.GetDataList(1,  mshade);
+            DA.GetDataList(1, mshade);
             DA.GetDataList(2, vsun);
             DA.GetData(3, ref run);
 
-            if (run==false) { return; }
+            if (run == false) { return; }
 
 
 
@@ -69,9 +70,9 @@ namespace SunTools.Component
             //temporary output variables
             var res = new GH_Structure<GH_Curve>();
             var Ares = new GH_Structure<GH_Number>();
-            
-             
-            var panel_outline_list= new List<Polyline>(panel.GetNakedEdges());
+
+
+            var panel_outline_list = new List<Polyline>(panel.GetNakedEdges());
             var panel_outline_gh = new GH_Curve();
             var panel_outline = new Polyline();
 
@@ -85,21 +86,21 @@ namespace SunTools.Component
             Plane.FitPlaneToPoints(panel_outline, out panel_plane);
 
             var projectback = new Transform();
-            
+
             //create transformation for reverse projection of the difference of outline 
             //projectback = Transform.PlanarProjection(panel_plane);
-            
+
 
             for (int i = 0; i < mshade.Count; i++)
             {
                 Mesh current_shade = mshade[i];
-                var current_shade_outline= new Polyline((new List<Polyline>(current_shade.GetNakedEdges()))[0]);
+                var current_shade_outline = new Polyline((new List<Polyline>(current_shade.GetNakedEdges()))[0]);
                 var p1 = new GH_Path(i);
 
 
                 for (int j = 0; j < vsun.Count; j++)
                 {
-                    var current_sun_plane = new Plane(panel_outline[0],vsun[j]);
+                    var current_sun_plane = new Plane(panel_outline[0], vsun[j]);
                     var projectsun = new Transform();
                     projectsun = Transform.PlanarProjection(current_sun_plane);
                     //projectsun.TryGetInverse(out projectback);
@@ -115,16 +116,17 @@ namespace SunTools.Component
 
                     if (temp_current_diff.Length == 0)
                     {
-                        
-                        res.Append(null,p1);
-                        Ares.Append(null,p1);
+
+                        res.Append(null, p1);
+                        Ares.Append(null, p1);
 
                     }
                     else
                     {
-                        
+
                         var current_diff = temp_current_diff[0];
-                        if (current_diff == null) {
+                        if (current_diff == null)
+                        {
                             res.Append(null, p1);
                             Ares.Append(null, p1);
                         }
@@ -135,7 +137,7 @@ namespace SunTools.Component
                             res.Append(new GH_Curve(current_diff), p1);
                             Ares.Append(new GH_Number(AreaMassProperties.Compute(current_diff).Area), p1);
                         }
-                        
+
                     }
 
 
