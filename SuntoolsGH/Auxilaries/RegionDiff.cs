@@ -16,7 +16,7 @@ namespace SunTools.Component
         public RegionDiff()
           : base("Boolean difference of co-planar curves", "RegionDiff",
               "Computes the boolean difference of co-planar curves and the area of the resulting curve",
-              "Victor", "Meshtools")
+              "SunTools","Utilities")
         {
         }
 
@@ -26,8 +26,8 @@ namespace SunTools.Component
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddCurveParameter("Curve 1", "c1", "Curve to substract from", GH_ParamAccess.list);
-            pManager.AddCurveParameter("Curve 2", "c2", "Curve to substract with", GH_ParamAccess.list);
-            //pManager.AddPlaneParameter("Analysis plane", "p", "plane in which the intersection takes place", GH_ParamAccess.list);
+            pManager.AddCurveParameter("Curve 2", "c2", "Curve to substract with", GH_ParamAccess.item);
+            pManager.AddPlaneParameter("Plane", "P", "Plane of intersection containing both curves", GH_ParamAccess.item);
         }
 
         /// <summary>
@@ -37,6 +37,8 @@ namespace SunTools.Component
         {
             pManager.AddCurveParameter("difference region c1 minus c2", "res", "Region resulting from the difference of C1 minus c2", GH_ParamAccess.list);
             pManager.AddNumberParameter("area of resulting region", "Ares", "Area of the region resulting from difference of c1 minus c2", GH_ParamAccess.list);
+            pManager.AddTextParameter("Comment on difference type", "outCom",
+                "type of difference between the two curves: Disjoint, MutualIntersection(and number of resulting disjoint closed curves), AinsideB, BinsideA", GH_ParamAccess.list);
         }
 
         /// <summary>
@@ -46,101 +48,120 @@ namespace SunTools.Component
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             var c1 = new List<Curve>();
-            var c2 = new List<Curve>();
-            //var planes = new GH_Structure<GH_Plane>();
-
+            Curve c2 = new PolylineCurve();
+            var intPlane = new Plane();
+            
+            const double tol = 0.001;
 
             var res = new List<GH_Curve>();
             var Ares = new List<GH_Number>();
+            var comment = new List<string>();
 
             if (!DA.GetDataList(0, c1)) { return; }
-            if (!DA.GetDataList(1, c2)) { return; }
+            if (!DA.GetData(1, ref c2)) { return; }
+            if (!DA.GetData(2, ref intPlane)) { return; }
 
-            if (!(c1.Count == c2.Count))
-            {
-                return;
-            }
+
+
+            //for (int i = 0; i < c1.Count; i++)
+            //{
+            //    var temp_current_diff= Curve.CreateBooleanDifference(c1[i], c2[i]);
+
+            //    if (temp_current_diff.Length == 0)
+            //    {
+            //        res.Add(null);
+            //        Ares.Add(null);
+
+            //    }
+            //    else
+            //    {
+            //        var current_diff = temp_current_diff[0];
+
+            //        res.Add(new GH_Curve(current_diff));
+            //        Ares.Add(new GH_Number(AreaMassProperties.Compute(current_diff).Area));
+            //    }
+            //}
+
+
 
             for (int i = 0; i < c1.Count; i++)
             {
-                var temp_current_diff= Curve.CreateBooleanDifference(c1[i], c2[i]);
+                RegionContainment status = Curve.PlanarClosedCurveRelationship(c1[i], c2, intPlane, tol);
 
-                if (temp_current_diff.Length == 0)
+                switch (status)
                 {
-                    res.Add(null);
-                    Ares.Add(null);
-                    
+                    case RegionContainment.Disjoint:
+                        res.Add(new GH_Curve(c1[i]));
+                        Ares.Add(new GH_Number(AreaMassProperties.Compute(c1[i]).Area));
+                        comment.Add("Disjoint");
+                        break;
+                    case RegionContainment.MutualIntersection:
+                        var currentDifference = Curve.CreateBooleanDifference(c1[i], c2);
+                        // test needed to determine if there is one or more distinct resulting curves
+
+                        if (currentDifference.Length == 0)
+                        {
+                            var areaInter = AreaMassProperties.Compute(Curve.CreateBooleanIntersection(c1[i], c2)).Area;
+                            if (areaInter < tol * AreaMassProperties.Compute(c1[i]).Area)
+                            {
+                                res.Add(new GH_Curve(c1[i]));
+                                Ares.Add(new GH_Number(AreaMassProperties.Compute(c1[i]).Area));
+                            }
+                            else
+                            {
+                                res.Add(null);
+                                Ares.Add(new GH_Number(0.0));
+                            }
+                            comment.Add("MutualIntersection, line/point intersection");
+                        }
+
+                        else if (currentDifference.Length == 1)
+                        {
+                            res.Add(new GH_Curve(currentDifference[0]));
+                            Ares.Add(new GH_Number(AreaMassProperties.Compute(currentDifference[0]).Area));
+                            comment.Add("MutualIntersection, 1 resulting closed curve");
+                        }
+                        else
+                        {
+                            for (int j = 0; j < currentDifference.Length; j++)
+                            {
+                                res.Add(new GH_Curve(currentDifference[j]));
+                            }
+                            Ares.Add(new GH_Number(AreaMassProperties.Compute(currentDifference).Area));
+                            comment.Add("MutualIntersection, " + currentDifference.Length.ToString() + " resulting closed curves");
+                        }
+                        break;
+                    case RegionContainment.AInsideB:
+                        if (c1[i].IsClosed)
+                        {
+                            res.Add(null);
+                            Ares.Add(new GH_Number(0.0));
+                            comment.Add("A Inside B, resulting curve is closed");
+                        }
+                        else
+                        {
+                            res.Add(new GH_Curve(c1[i]));
+                            Ares.Add(null);
+                            comment.Add("A Inside B,  resulting curve is NOT closed");
+                        }
+                        break;
+                    case RegionContainment.BInsideA:
+                        res.Add(new GH_Curve(c2));
+
+                        Ares.Add(new GH_Number(AreaMassProperties.Compute(c2).Area));
+                        comment.Add("B Inside A,  resulting curve is  closed");
+                        break;
                 }
-                else
-                {
-                    var current_diff = temp_current_diff[0];
-
-                    res.Add(new GH_Curve(current_diff));
-                    Ares.Add(new GH_Number(AreaMassProperties.Compute(current_diff).Area));
-                }
-                
-                
-
-
             }
 
 
-            //var res = new GH_Structure<GH_Curve>();
-            //var Ares = new GH_Structure<GH_Number>();
-
-            //if (!DA.GetDataList(0,  master)) { return; }
-            //if (!DA.GetDataTree(1, out substractor)) { return; }
-            ////if (!DA.GetDataTree(2, out planes)) { return; }
-
-            //for (int i = 0; i < substractor.Branches.Count; i++)
-            //{
-            //    var current_subtractors = substractor.Branches[i];
-            //    var ncurve = current_subtractors.Count;
-
-            //    if (!(ncurve == master.Count))
-            //    {
-            //        return;
-            //    }
-
-            //    for (int j = 0; j < ncurve; j++)
-            //    {
-            //        var p2 = new GH_Path(i,j);
-
-            //        var current_curve = new PolylineCurve();
-            //        current_subtractors[j].CastTo<PolylineCurve>(out current_curve);
-
-            //        var temp_current_res = Curve.CreateBooleanDifference(master[j], current_curve);
-
-            //        if ((temp_current_res.Length == 0))
-            //        {
-            //         return;
-            //        }
-
-            //        var current_res =temp_current_res[0];
-            //        var current_area = new GH_Number(AreaMassProperties.Compute(current_res).Area);
-
-            //        var current_res_gh = new GH_Curve(current_res);
-            //        //var current_area_gh = new GH_Number((current_area[0]));
-
-            //        //for (int k = 0; k <current_res.Length;k++)
-            //        //{
-            //        //    current_res_gh.Add(new GH_Curve(current_res[k]));
-            //        //    var current_area = new GH_Number(AreaMassProperties.Compute(current_res[k]).Area);
-            //        //    current_area_gh.Add(current_area);
-            //        //}
-
-            //        res.Append(current_res_gh, p2);
-            //        Ares.Append(current_area,p2);
 
 
-            //    }
-
-
-            //}
 
             DA.SetDataList(0, res);
             DA.SetDataList(1, Ares);
-            
+            DA.SetDataList(2, comment);
+
 
         }
 
