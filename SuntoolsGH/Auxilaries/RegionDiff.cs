@@ -62,28 +62,6 @@ namespace SunTools.Component
             if (!DA.GetData(2, ref intPlane)) { return; }
 
 
-
-            //for (int i = 0; i < c1.Count; i++)
-            //{
-            //    var temp_current_diff= Curve.CreateBooleanDifference(c1[i], c2[i]);
-
-            //    if (temp_current_diff.Length == 0)
-            //    {
-            //        res.Add(null);
-            //        Ares.Add(null);
-
-            //    }
-            //    else
-            //    {
-            //        var current_diff = temp_current_diff[0];
-
-            //        res.Add(new GH_Curve(current_diff));
-            //        Ares.Add(new GH_Number(AreaMassProperties.Compute(current_diff).Area));
-            //    }
-            //}
-
-
-
             for (int i = 0; i < c1.Count; i++)
             {
                 RegionContainment status = Curve.PlanarClosedCurveRelationship(c1[i], c2, intPlane, tol);
@@ -106,13 +84,15 @@ namespace SunTools.Component
                             {
                                 res.Add(new GH_Curve(c1[i]));
                                 Ares.Add(new GH_Number(AreaMassProperties.Compute(c1[i]).Area));
+                                comment.Add("MutualIntersection, line/point intersection, case 1");
                             }
                             else
                             {
                                 res.Add(null);
                                 Ares.Add(new GH_Number(0.0));
+                                comment.Add("MutualIntersection, line/point intersection, case 2");
                             }
-                            comment.Add("MutualIntersection, line/point intersection");
+                            
                         }
 
                         else if (currentDifference.Length == 1)
