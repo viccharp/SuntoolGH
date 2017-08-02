@@ -90,7 +90,6 @@ namespace SunTools.Component
                             {
                                 res.Add(new GH_Curve(c2));
                                 res.Add(new GH_Curve(c1[i]));
-
                                 Ares.Add(new GH_Number(AreaMassProperties.Compute(c1[i]).Area - AreaMassProperties.Compute(c2).Area));
                                 comment.Add("MutualIntersection, line/point intersection, case 2a_b");
                             }

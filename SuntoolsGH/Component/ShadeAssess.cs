@@ -91,7 +91,10 @@ namespace SunTools.Component
             double tol = 0.001;
 
             //create transformation for reverse projection of the difference of outline 
-            //projectback = Transform.PlanarProjection(panel_plane);
+            projectback = Transform.PlanarProjection(panel_plane);
+
+            // Surface Area of window panel
+            var winArea= AreaMassProperties.Compute(new Polyline(panel_outline).ToNurbsCurve()).Area;
 
 
             for (int i = 0; i < mshade.Count; i++)
@@ -99,8 +102,7 @@ namespace SunTools.Component
                 Mesh current_shade = mshade[i];
                 var current_shade_outline = new Polyline((new List<Polyline>(current_shade.GetNakedEdges()))[0]);
                 var p1 = new GH_Path(i);
-
-
+                
                 for (int j = 0; j < vsun.Count; j++)
                 {
                     var current_sun_plane = new Plane(panel_outline[0], vsun[j]);
@@ -120,8 +122,8 @@ namespace SunTools.Component
                     switch (status)
                     {
                         case RegionContainment.Disjoint:
-                            res.Append(null, p1);
-                            Ares.Append(new GH_Number(0.0), p1);
+                            res.Append(new GH_Curve(new Polyline(panel_outline).ToNurbsCurve()), p1);
+                            Ares.Append(new GH_Number(winArea), p1);
                             comment.Append(new GH_String("Disjoint, case 1"),p1);
                             break;
                         case RegionContainment.MutualIntersection:
@@ -133,22 +135,25 @@ namespace SunTools.Component
                                 var areaInter = AreaMassProperties.Compute(Curve.CreateBooleanIntersection(current_panel_sun_proj, current_shade_sun_proj)).Area;
                                 if (areaInter < tol * AreaMassProperties.Compute(current_panel_sun_proj).Area)
                                 {
-                                    res.Append(new GH_Curve(current_panel_sun_proj), p1);
-                                    Ares.Append(new GH_Number(AreaMassProperties.Compute(current_panel_sun_proj).Area), p1);
+                                    //current_panel_sun_proj.Transform(projectback);
+                                    res.Append(new GH_Curve(new Polyline(panel_outline).ToNurbsCurve()), p1);
+                                    Ares.Append(new GH_Number(winArea), p1);
                                     comment.Append(new GH_String("MutualIntersection, line/point intersection, case 2a_a"), p1);
                                 }
                                 else
                                 {
-                                    res.Append(null, p1);
-                                    Ares.Append(new GH_Number(0.0), p1);
+                                    current_shade_outline.Transform(projectback);
+                                    res.Append(new GH_Curve(new Polyline(current_shade_outline).ToNurbsCurve()), p1);
+                                    res.Append(new GH_Curve(new Polyline(panel_outline).ToNurbsCurve()), p1);
+                                    Ares.Append(new GH_Number(winArea - AreaMassProperties.Compute(new Polyline(current_shade_outline).ToNurbsCurve()).Area), p1);
                                     comment.Append(new GH_String("MutualIntersection, line/point intersection, case 2a_b"), p1);
-                                    //this solution is not satisfactory
                                 }
                                 
                             }
 
                             else if (current_difference.Length == 1)
                             {
+                                current_difference[0].Transform(projectback);
                                 res.Append(new GH_Curve(current_difference[0]),p1);
                                 Ares.Append(new GH_Number(AreaMassProperties.Compute(current_difference[0]).Area), p1);
                                 comment.Append(new GH_String("MutualIntersection, 1 resulting closed curve, case 2b"), p1);
@@ -157,6 +162,7 @@ namespace SunTools.Component
                             {
                                 for (int k = 0; k < current_difference.Length; k++)
                                 {
+                                    current_difference[k].Transform(projectback);
                                     res.Append(new GH_Curve(current_difference[k]), p1);
                                 }
                                 Ares.Append(new GH_Number(AreaMassProperties.Compute(current_difference).Area), p1);
@@ -166,56 +172,25 @@ namespace SunTools.Component
                         case RegionContainment.AInsideB:
                             if (current_panel_sun_proj.IsClosed)
                             {
-                                res.Append(new GH_Curve(current_panel_sun_proj), p1);
-
-                                Ares.Append(new GH_Number(AreaMassProperties.Compute(current_panel_sun_proj).Area), p1);
+                                res.Append(new GH_Curve(new Polyline(panel_outline).ToNurbsCurve()), p1);
+                                Ares.Append(new GH_Number(winArea), p1);
                                 comment.Append(new GH_String("A Inside B, resulting curve is closed, case 3a"),p1);
                             }
                             else
                             {
-                                res.Append(new GH_Curve(current_panel_sun_proj), p1);
+                                res.Append(new GH_Curve(new Polyline(panel_outline).ToNurbsCurve()), p1);
                                 Ares.Append(null, p1);
                                 comment.Append(new GH_String("A Inside B,  resulting curve is NOT closed, case 3b"),p1);
                             }
                             break;
                         case RegionContainment.BInsideA:
-                            res.Append(new GH_Curve(current_shade_sun_proj), p1);
-                            Ares.Append(new GH_Number(AreaMassProperties.Compute(current_shade_sun_proj).Area), p1);
+                            current_shade_outline.Transform(projectback);
+                            res.Append(new GH_Curve(new Polyline(current_shade_outline).ToNurbsCurve()), p1);
+                            res.Append(new GH_Curve(new Polyline(panel_outline).ToNurbsCurve()), p1);
+                            Ares.Append(new GH_Number(winArea - AreaMassProperties.Compute(new Polyline(current_shade_outline).ToNurbsCurve()).Area), p1);
                             comment.Append(new GH_String("B Inside A,  resulting curve is  closed, case 4"),p1);
                             break;
                     }
-
-
-
-                    //var temp_current_diff = Curve.CreateBooleanDifference(current_panel_sun_proj.ToNurbsCurve(), current_shade_sun_proj.ToNurbsCurve());
-
-                    //if (temp_current_diff.Length == 0)
-                    //{
-
-                    //    res.Append(null, p1);
-                    //    Ares.Append(null, p1);
-
-                    //}
-                    //else
-                    //{
-
-                    //    var current_diff = temp_current_diff[0];
-                    //    if (current_diff == null)
-                    //    {
-                    //        res.Append(null, p1);
-                    //        Ares.Append(null, p1);
-                    //    }
-                    //    else
-                    //    {
-                    //        current_diff.Transform(projectback);
-
-                    //        res.Append(new GH_Curve(current_diff), p1);
-                    //        Ares.Append(new GH_Number(AreaMassProperties.Compute(current_diff).Area), p1);
-                    //    }
-
-                    //}
-
-
 
 
                 }
