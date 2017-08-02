@@ -71,7 +71,7 @@ namespace SunTools.Component
                     case RegionContainment.Disjoint:
                         res.Add(new GH_Curve(c1[i]));
                         Ares.Add(new GH_Number(AreaMassProperties.Compute(c1[i]).Area));
-                        comment.Add("Disjoint");
+                        comment.Add("Disjoint, case 1");
                         break;
                     case RegionContainment.MutualIntersection:
                         var currentDifference = Curve.CreateBooleanDifference(c1[i], c2);
@@ -84,13 +84,15 @@ namespace SunTools.Component
                             {
                                 res.Add(new GH_Curve(c1[i]));
                                 Ares.Add(new GH_Number(AreaMassProperties.Compute(c1[i]).Area));
-                                comment.Add("MutualIntersection, line/point intersection, case 1");
+                                comment.Add("MutualIntersection, line/point intersection, case 2a_a");
                             }
-                            else
+                            else 
                             {
-                                res.Add(null);
-                                Ares.Add(new GH_Number(0.0));
-                                comment.Add("MutualIntersection, line/point intersection, case 2");
+                                res.Add(new GH_Curve(c2));
+                                res.Add(new GH_Curve(c1[i]));
+
+                                Ares.Add(new GH_Number(AreaMassProperties.Compute(c1[i]).Area - AreaMassProperties.Compute(c2).Area));
+                                comment.Add("MutualIntersection, line/point intersection, case 2a_b");
                             }
                             
                         }
@@ -99,7 +101,7 @@ namespace SunTools.Component
                         {
                             res.Add(new GH_Curve(currentDifference[0]));
                             Ares.Add(new GH_Number(AreaMassProperties.Compute(currentDifference[0]).Area));
-                            comment.Add("MutualIntersection, 1 resulting closed curve");
+                            comment.Add("MutualIntersection, 1 resulting closed curve, case 2b");
                         }
                         else
                         {
@@ -108,28 +110,29 @@ namespace SunTools.Component
                                 res.Add(new GH_Curve(currentDifference[j]));
                             }
                             Ares.Add(new GH_Number(AreaMassProperties.Compute(currentDifference).Area));
-                            comment.Add("MutualIntersection, " + currentDifference.Length.ToString() + " resulting closed curves");
+                            comment.Add("MutualIntersection, " + currentDifference.Length.ToString() + " resulting closed curves, case 2c");
                         }
                         break;
                     case RegionContainment.AInsideB:
                         if (c1[i].IsClosed)
                         {
-                            res.Add(null);
-                            Ares.Add(new GH_Number(0.0));
-                            comment.Add("A Inside B, resulting curve is closed");
+                            res.Add(new GH_Curve(c1[i]));
+                            Ares.Add(new GH_Number(AreaMassProperties.Compute(c1[i]).Area));
+                            comment.Add("A Inside B, resulting curve is closed, case 3a");
                         }
                         else
                         {
                             res.Add(new GH_Curve(c1[i]));
                             Ares.Add(null);
-                            comment.Add("A Inside B,  resulting curve is NOT closed");
+                            comment.Add("A Inside B,  resulting curve is NOT closed, case 3b");
                         }
                         break;
                     case RegionContainment.BInsideA:
                         res.Add(new GH_Curve(c2));
+                        res.Add(new GH_Curve(c1[i]));
 
-                        Ares.Add(new GH_Number(AreaMassProperties.Compute(c2).Area));
-                        comment.Add("B Inside A,  resulting curve is  closed");
+                        Ares.Add(new GH_Number(AreaMassProperties.Compute(c1[i]).Area-AreaMassProperties.Compute(c2).Area));
+                        comment.Add("B Inside A,  resulting curve is  closed, case 4");
                         break;
                 }
             }
