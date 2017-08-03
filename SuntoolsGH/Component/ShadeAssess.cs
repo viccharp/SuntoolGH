@@ -161,7 +161,7 @@ namespace SunTools.Component
                         case RegionContainment.AInsideB:
                             if (panelOutline.IsClosed)
                             {
-                                res.Append(new GH_Curve(panelOutline), p1);
+                                res.Append(new GH_Curve(panelOutline), p1); 
                                 ares.Append(new GH_Number(winArea), p1);
                                 comment.Append(new GH_String("A Inside B, resulting curve is closed, case 3a"),p1);
                             }
@@ -179,11 +179,7 @@ namespace SunTools.Component
                             comment.Append(new GH_String("B Inside A,  resulting curve is  closed, case 4"),p1);
                             break;
                     }
-
-
                 }
-
-
             }
 
             shadeOutline = res;
