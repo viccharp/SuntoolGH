@@ -13,9 +13,9 @@ namespace SunTools.Component
         /// Initializes a new instance of the MyComponent1 class.
         /// </summary>
         public ShadeAssess()
-            : base("Evaluate shade on façade panel", "ShadeAssess",
+            : base("Shade on façade panel", "ShadeAssess",
                 "Projection of Shading surface on ",
-                "SunTools", "Shading Tools")
+                "SunTools", "Shading")
         {
         }
 
@@ -24,7 +24,7 @@ namespace SunTools.Component
         /// </summary>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddMeshParameter("Façade Panel", "mfpanel", "A list of planar panels representing part of a façade", GH_ParamAccess.item);
+            pManager.AddMeshParameter("Façade Panel", "mfpanel", "A planar mesh representing a panel of a façade", GH_ParamAccess.item);
             pManager.AddMeshParameter("Shade surface", "mshade", "A list of shade meshes to be evaluated for direct shade coverage", GH_ParamAccess.list);
             pManager.AddVectorParameter("Projection direction vector", "dir", "The vectors for shading evaluation", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Launch the analysis", "start", "If bool is True: analysis is running, if bool is False: analysis stopped", GH_ParamAccess.item);
@@ -32,7 +32,7 @@ namespace SunTools.Component
         }
 
         /// <summary>
-        /// Registers all the output parameters for this component.
+        /// Registers all the output parameters for this component
         /// </summary>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
