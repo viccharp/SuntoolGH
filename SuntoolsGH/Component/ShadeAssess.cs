@@ -13,9 +13,9 @@ namespace SunTools.Component
         /// Initializes a new instance of the MyComponent1 class.
         /// </summary>
         public ShadeAssess()
-            : base("Evaluate shade on façade panel", "ShadeAssess",
+            : base("Shade on façade panel", "ShadeAssess",
                 "Projection of Shading surface on ",
-                "SunTools", "Shading Tools")
+                "SunTools", "Shading")
         {
         }
 
@@ -24,7 +24,7 @@ namespace SunTools.Component
         /// </summary>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddMeshParameter("Façade Panel", "mfpanel", "A list of planar panels representing part of a façade", GH_ParamAccess.item);
+            pManager.AddMeshParameter("Façade Panel", "mfpanel", "A planar mesh representing a panel of a façade", GH_ParamAccess.item);
             pManager.AddMeshParameter("Shade surface", "mshade", "A list of shade meshes to be evaluated for direct shade coverage", GH_ParamAccess.list);
             pManager.AddVectorParameter("Projection direction vector", "dir", "The vectors for shading evaluation", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Launch the analysis", "start", "If bool is True: analysis is running, if bool is False: analysis stopped", GH_ParamAccess.item);
@@ -32,7 +32,7 @@ namespace SunTools.Component
         }
 
         /// <summary>
-        /// Registers all the output parameters for this component.
+        /// Registers all the output parameters for this component
         /// </summary>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
@@ -46,8 +46,8 @@ namespace SunTools.Component
         /// <summary>
         /// This is the method that actually does the work.
         /// </summary>
-        /// <param name="DA">The DA object is used to retrieve from inputs and store in outputs.</param>
-        protected override void SolveInstance(IGH_DataAccess DA)
+        /// <param name="da">The DA object is used to retrieve from inputs and store in outputs.</param>
+        protected override void SolveInstance(IGH_DataAccess da)
         {
             // input variables
             var panel = new Mesh();
@@ -55,180 +55,139 @@ namespace SunTools.Component
             var vsun = new List<Vector3d>();
             var run = new bool();
 
-            DA.GetData(0, ref panel);
-            DA.GetDataList(1, mshade);
-            DA.GetDataList(2, vsun);
-            DA.GetData(3, ref run);
+            da.GetData(0, ref panel);
+            da.GetDataList(1, mshade);
+            da.GetDataList(2, vsun);
+            da.GetData(3, ref run);
 
             if (run == false) { return; }
 
 
 
             //output variables
-            var shade_outline = new GH_Structure<GH_Curve>();
-            var shade_areas = new GH_Structure<GH_Number>();
+            var shadeOutline = new GH_Structure<GH_Curve>();
+            var shadeAreas = new GH_Structure<GH_Number>();
 
             //temporary output variables
             var res = new GH_Structure<GH_Curve>();
-            var Ares = new GH_Structure<GH_Number>();
+            var ares = new GH_Structure<GH_Number>();
             var comment = new GH_Structure<GH_String>();
 
 
-            var panel_outline_list = new List<Polyline>(panel.GetNakedEdges());
-            var panel_outline_gh = new GH_Curve();
-            var panel_outline = new Polyline();
+            var panelOutlineList = new List<Polyline>(panel.GetNakedEdges());
+            if (panelOutlineList.Count > 1) { return; }
 
-            if (panel_outline_list.Count > 1) { return; }
-            else
-            {
-                panel_outline = panel_outline_list[0];
-            }
+            // Define panel outline as a nurbscurve 
+            var panelOutline = new Polyline(panelOutlineList[0]).ToNurbsCurve();
 
-            var panel_plane = new Plane();
-            Plane.FitPlaneToPoints(panel_outline, out panel_plane);
+            var panelPlane = new Plane();
+            Plane.FitPlaneToPoints(panelOutlineList[0], out panelPlane);
 
-            var projectback = new Transform();
+            
             double tol = 0.001;
 
-            //create transformation for reverse projection of the difference of outline 
-            //projectback = Transform.PlanarProjection(panel_plane);
+            
+            // Surface Area of window panel
+            var winArea= AreaMassProperties.Compute(panelOutline).Area;
 
 
             for (int i = 0; i < mshade.Count; i++)
             {
-                Mesh current_shade = mshade[i];
-                var current_shade_outline = new Polyline((new List<Polyline>(current_shade.GetNakedEdges()))[0]);
+                Mesh currentShade = mshade[i];
+                var currentShadeOutline = new Polyline((new List<Polyline>(currentShade.GetNakedEdges()))[0]);
                 var p1 = new GH_Path(i);
-
-
+                
                 for (int j = 0; j < vsun.Count; j++)
                 {
-                    var current_sun_plane = new Plane(panel_outline[0], vsun[j]);
-                    var projectsun = new Transform();
-                    projectsun = Transform.PlanarProjection(current_sun_plane);
-                    //projectsun.TryGetInverse(out projectback);
-                    projectback = GetObliqueTransformation(panel_plane, vsun[j]);
+                    // Create projection transform of shade to panel plane along the sun vector direction
+                    var projectToPp = new Transform();
+                    projectToPp = GetObliqueTransformation(panelPlane, vsun[j]);
+                    
+                    // Project shade outline to panel plane along the sun vector direction 
+                    var currentShadeSunProj = new Polyline(currentShadeOutline).ToNurbsCurve();
+                    currentShadeSunProj.Transform(projectToPp);
 
-
-                    var current_panel_sun_proj = new Polyline(panel_outline).ToNurbsCurve();
-                    var current_shade_sun_proj = new Polyline(current_shade_outline).ToNurbsCurve();
-                    current_panel_sun_proj.Transform(projectsun);
-                    current_shade_sun_proj.Transform(projectsun);
-
-                    RegionContainment status = Curve.PlanarClosedCurveRelationship(current_panel_sun_proj,current_shade_sun_proj, current_sun_plane, tol);
+                    // Determine the difference of the panel outline - the shade outline
+                    RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, currentShadeSunProj, panelPlane, tol);
 
                     switch (status)
                     {
                         case RegionContainment.Disjoint:
-                            res.Append(null, p1);
-                            Ares.Append(new GH_Number(0.0), p1);
+                            res.Append(new GH_Curve(panelOutline), p1);
+                            ares.Append(new GH_Number(winArea), p1);
                             comment.Append(new GH_String("Disjoint, case 1"),p1);
                             break;
                         case RegionContainment.MutualIntersection:
-                            var current_difference =Curve.CreateBooleanDifference(current_panel_sun_proj,current_shade_sun_proj);
+                            Curve[] currentDifference =Curve.CreateBooleanDifference(panelOutline, currentShadeSunProj);
+                            if (currentDifference == null) throw new ArgumentNullException(nameof(currentDifference));
                             // test needed to determine if there is one or more distinct resulting curves
 
-                            if (current_difference.Length == 0)
+                            if (currentDifference.Length == 0)
                             {
-                                var areaInter = AreaMassProperties.Compute(Curve.CreateBooleanIntersection(current_panel_sun_proj, current_shade_sun_proj)).Area;
-                                if (areaInter < tol * AreaMassProperties.Compute(current_panel_sun_proj).Area)
+                                var areaInter = AreaMassProperties.Compute(Curve.CreateBooleanIntersection(panelOutline, currentShadeSunProj)).Area;
+                                if (areaInter < tol * AreaMassProperties.Compute(panelOutline).Area)
                                 {
-                                    res.Append(new GH_Curve(current_panel_sun_proj), p1);
-                                    Ares.Append(new GH_Number(AreaMassProperties.Compute(current_panel_sun_proj).Area), p1);
+                                    res.Append(new GH_Curve(panelOutline), p1);
+                                    ares.Append(new GH_Number(winArea), p1);
                                     comment.Append(new GH_String("MutualIntersection, line/point intersection, case 2a_a"), p1);
                                 }
                                 else
                                 {
-                                    res.Append(null, p1);
-                                    Ares.Append(new GH_Number(0.0), p1);
+                                    res.Append(new GH_Curve(currentShadeSunProj), p1);
+                                    res.Append(new GH_Curve(panelOutline), p1);
+                                    ares.Append(new GH_Number(winArea - AreaMassProperties.Compute(currentShadeSunProj).Area), p1);
                                     comment.Append(new GH_String("MutualIntersection, line/point intersection, case 2a_b"), p1);
-                                    //this solution is not satisfactory
                                 }
                                 
                             }
 
-                            else if (current_difference.Length == 1)
+                            else if (currentDifference.Length == 1)
                             {
-                                res.Append(new GH_Curve(current_difference[0]),p1);
-                                Ares.Append(new GH_Number(AreaMassProperties.Compute(current_difference[0]).Area), p1);
+                                currentDifference[0].Transform(projectToPp);
+                                res.Append(new GH_Curve(currentDifference[0]),p1);
+                                ares.Append(new GH_Number(AreaMassProperties.Compute(currentDifference[0]).Area), p1);
                                 comment.Append(new GH_String("MutualIntersection, 1 resulting closed curve, case 2b"), p1);
                             }
                             else
                             {
-                                for (int k = 0; k < current_difference.Length; k++)
+                                for (int k = 0; k < currentDifference.Length; k++)
                                 {
-                                    res.Append(new GH_Curve(current_difference[k]), p1);
+                                    res.Append(new GH_Curve(currentDifference[k]), p1);
                                 }
-                                Ares.Append(new GH_Number(AreaMassProperties.Compute(current_difference).Area), p1);
-                                comment.Append(new GH_String("MutualIntersection, " + current_difference.Length.ToString() + " resulting closed curves, case 2c"), p1);
+                                ares.Append(new GH_Number(AreaMassProperties.Compute(currentDifference).Area), p1);
+                                comment.Append(new GH_String("MutualIntersection, " + currentDifference.Length.ToString() + " resulting closed curves, case 2c"), p1);
                             }
                             break;
                         case RegionContainment.AInsideB:
-                            if (current_panel_sun_proj.IsClosed)
+                            if (panelOutline.IsClosed)
                             {
-                                res.Append(new GH_Curve(current_panel_sun_proj), p1);
-
-                                Ares.Append(new GH_Number(AreaMassProperties.Compute(current_panel_sun_proj).Area), p1);
+                                res.Append(new GH_Curve(panelOutline), p1); 
+                                ares.Append(new GH_Number(winArea), p1);
                                 comment.Append(new GH_String("A Inside B, resulting curve is closed, case 3a"),p1);
                             }
                             else
                             {
-                                res.Append(new GH_Curve(current_panel_sun_proj), p1);
-                                Ares.Append(null, p1);
+                                res.Append(new GH_Curve(panelOutline), p1);
+                                ares.Append(null, p1);
                                 comment.Append(new GH_String("A Inside B,  resulting curve is NOT closed, case 3b"),p1);
                             }
                             break;
                         case RegionContainment.BInsideA:
-                            res.Append(new GH_Curve(current_shade_sun_proj), p1);
-                            Ares.Append(new GH_Number(AreaMassProperties.Compute(current_shade_sun_proj).Area), p1);
+                            res.Append(new GH_Curve(currentShadeSunProj), p1);
+                            res.Append(new GH_Curve(panelOutline), p1);
+                            ares.Append(new GH_Number(winArea - AreaMassProperties.Compute(currentShadeSunProj).Area), p1);
                             comment.Append(new GH_String("B Inside A,  resulting curve is  closed, case 4"),p1);
                             break;
                     }
-
-
-
-                    //var temp_current_diff = Curve.CreateBooleanDifference(current_panel_sun_proj.ToNurbsCurve(), current_shade_sun_proj.ToNurbsCurve());
-
-                    //if (temp_current_diff.Length == 0)
-                    //{
-
-                    //    res.Append(null, p1);
-                    //    Ares.Append(null, p1);
-
-                    //}
-                    //else
-                    //{
-
-                    //    var current_diff = temp_current_diff[0];
-                    //    if (current_diff == null)
-                    //    {
-                    //        res.Append(null, p1);
-                    //        Ares.Append(null, p1);
-                    //    }
-                    //    else
-                    //    {
-                    //        current_diff.Transform(projectback);
-
-                    //        res.Append(new GH_Curve(current_diff), p1);
-                    //        Ares.Append(new GH_Number(AreaMassProperties.Compute(current_diff).Area), p1);
-                    //    }
-
-                    //}
-
-
-
-
                 }
-
-
             }
 
-            shade_outline = res;
-            shade_areas = Ares;
+            shadeOutline = res;
+            shadeAreas = ares;
 
-            DA.SetDataTree(0, shade_outline);
-            DA.SetDataTree(1, shade_areas);
-            DA.SetDataTree(2, comment);
+            da.SetDataTree(0, shadeOutline);
+            da.SetDataTree(1, shadeAreas);
+            da.SetDataTree(2, comment);
 
         }
 
@@ -253,19 +212,19 @@ namespace SunTools.Component
         -a*dz/D    -b*dz/D   1-c*dz/D   -d*dz/D
         0          0          0         1
        */
-        public Transform GetObliqueTransformation(Plane Pln, Vector3d V)
+        public Transform GetObliqueTransformation(Plane pln, Vector3d v)
         {
 
             Transform oblique = new Transform(1);
-            double[] eq = Pln.GetPlaneEquation();
+            double[] eq = pln.GetPlaneEquation();
             double a, b, c, d, dx, dy, dz, D;
             a = eq[0];
             b = eq[1];
             c = eq[2];
             d = eq[3];
-            dx = V.X;
-            dy = V.Y;
-            dz = V.Z;
+            dx = v.X;
+            dy = v.Y;
+            dz = v.Z;
             D = a * dx + b * dy + c * dz;
             oblique.M00 = 1 - a * dx / D;
             oblique.M10 = -a * dy / D;
