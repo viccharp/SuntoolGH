@@ -61,11 +61,32 @@ namespace SunTools.Auxilaries
             if (!DA.GetData(1,ref curveB)) { return; }
             if (!DA.GetData(2,ref Int_plane)) { return; }
             
+            // check if curveB is null
+            if (curveB == null)
+            {
+                res.Add(null);
+                Ares.Add(new GH_Number(0.00));
+                comment.Add("Null curveB");
+                
+            }
+
+
             for (int i = 0; i < curveA.Count; i++)
             {
+
+                
+                if (curveA[i] == null)
+                {
+                    res.Add(null);
+                    Ares.Add(new GH_Number(0.00));
+                    comment.Add("Null curveA");
+                    
+                }
+                else
+                {
                 RegionContainment status = Curve.PlanarClosedCurveRelationship(curveA[i], curveB, Int_plane, tol);
 
-                switch (status)
+                    switch (status)
                 {
                     case RegionContainment.Disjoint:
                         res.Add(null);
@@ -120,6 +141,7 @@ namespace SunTools.Auxilaries
                         Ares.Add(new GH_Number(AreaMassProperties.Compute(curveB).Area));
                         comment.Add("B Inside A,  resulting curve is  closed");
                         break;
+                }
                 }
             }
 

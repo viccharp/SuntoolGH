@@ -133,10 +133,22 @@ namespace SunTools.Component
                                 }
                                 else
                                 {
-                                    res.Append(new GH_Curve(currentShadeSunProj), p1);
-                                    res.Append(new GH_Curve(panelOutline), p1);
-                                    ares.Append(new GH_Number(winArea - AreaMassProperties.Compute(currentShadeSunProj).Area), p1);
-                                    comment.Append(new GH_String("MutualIntersection, line/point intersection, case 2a_b"), p1);
+                                    var adiff = winArea - AreaMassProperties.Compute(currentShadeSunProj).Area;
+                                    ares.Append(new GH_Number(adiff), p1);
+
+                                    if (adiff < 0.01 * winArea)
+                                    {
+                                        res.Append(null, p1);
+                                        comment.Append(new GH_String("MutualIntersection, line/point intersection, resulting surface negligeable, case 2a-ba"), p1);
+                                    }
+                                    else
+                                    {
+                                        res.Append(new GH_Curve(currentShadeSunProj), p1);
+                                        res.Append(new GH_Curve(panelOutline), p1);
+                                        comment.Append(new GH_String("MutualIntersection, line/point intersection, faulty case, case 2a-bb"), p1);
+                                    }
+                                    
+                                    
                                 }
                                 
                             }
