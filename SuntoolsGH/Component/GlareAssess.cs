@@ -36,9 +36,10 @@ namespace SunTools.Component
         /// </summary>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddCurveParameter("Outline of Glare", "Glare_Outline", "Tree of glare oultine on the wall panels", GH_ParamAccess.tree);
-            pManager.AddNumberParameter("Area of exposed", "Area_exposed", "Area of the exposed part of the façade panel", GH_ParamAccess.tree);
+            pManager.AddMeshParameter("Mesh of Glare on the wall panel", "GlareMesh", "Tree of meshes for glare on the wall panel", GH_ParamAccess.tree);
+            pManager.AddNumberParameter("Area of Glare on the wall panel", "GlareArea", "Area of the exposed part of the façade panel", GH_ParamAccess.tree);
             pManager.AddTextParameter("Comment on operation type", "outCom", "", GH_ParamAccess.tree);
+            pManager.AddCurveParameter("projected mesh of glare for debugging", "projSourceMesh", "Area of the exposed part of the wall plane", GH_ParamAccess.tree);
         }
 
         /// <summary>
@@ -58,36 +59,54 @@ namespace SunTools.Component
             DA.GetDataList(2, sunVector);
             DA.GetData(3, ref run);
 
-            const double tol = 0.001;
+            const double tol = 0.0001;
 
             if (run == false) { return; }
 
 
             // output variables
-            var glareOutline = new GH_Structure<GH_Curve>();
+            var glareOutline = new GH_Structure<GH_Mesh>();
             var glareAreas = new GH_Structure<GH_Number>();
 
             // temporary output variables
-            var result = new GH_Structure<GH_Curve>();
+            var result = new GH_Structure<GH_Mesh>();
             var areaResult = new GH_Structure<GH_Number>();
             var comment = new GH_Structure<GH_String>();
 
+            //debug variable
+            var outlineProj= new GH_Structure<GH_Curve>();
+
             // Define wall plane
+            if (!wallPanel.IsValid) { return; }
             var panelOutlineList = new List<Polyline>(wallPanel.GetNakedEdges());
             if (panelOutlineList.Count > 1) { return; }
 
-            //// Define panel outline as a nurbscurve 
-            //var panelOutline = new Polyline(panelOutlineList[0]).ToNurbsCurve();
+            // Define wall normal vector
+            wallPanel.Normals.ComputeNormals();
+            var wNV = wallPanel.Normals[0];
+            wNV.Unitize();
+
+            // Area of wall panel
+            var areaWallPanel = AreaMassProperties.Compute(wallPanel).Area;
+
+            // Define panel outline as a nurbscurve 
+            var panelOutline = new Polyline(panelOutlineList[0]).ToNurbsCurve();
+            if (!panelOutline.IsClosed) { panelOutline.MakeClosed(0.01); }
+
+            // define cutter for mesh
+            var tempCutter = Surface.CreateExtrusion(panelOutline, wNV);
+            tempCutter.Translate(Vector3d.Multiply(new Vector3d(wNV), -0.5));
+
+            var meshCutter = Mesh.CreateFromBrep(tempCutter.ToBrep(), MeshingParameters.Coarse);
 
             var panelPlane = new Plane();
             Plane.FitPlaneToPoints(panelOutlineList[0], out panelPlane);
 
 
-
             for (int i = 0; i < source.Count; i++)
             {
                 // Define source Path for output 
-                var areaPath=new GH_Path(i);
+                var areaPath = new GH_Path(i);
 
                 for (int j = 0; j < sunVector.Count; j++)
                 {
@@ -95,12 +114,52 @@ namespace SunTools.Component
                     var currentProjTrans = GetObliqueTransformation(panelPlane, sunVector[j]);
 
                     // Define projected source mesh
-                    var currentProjSource = source[i].Transform(currentProjTrans);
-                    
-                    // Define outlines of bounding boxes for the wall panel and the projected source
+                    var currentProjSource = source[i];
+                    currentProjSource.Transform(currentProjTrans);
+
+                    // Outline of bounding box
+                    var outlineBBSource = new Polyline(Point3d.SortAndCullPointList(currentProjSource.GetBoundingBox(true).GetCorners(),tol));
+                    outlineBBSource.Add(source[i].GetBoundingBox(true).GetCorners()[0]);
+
+                    var outlineBBSourceNBS = outlineBBSource.ToNurbsCurve();
+                    if (!outlineBBSourceNBS.IsClosed) { outlineBBSourceNBS.MakeClosed(0.1); }
+
+                    if (!outlineBBSourceNBS.IsClosed) { return; }
+
+
+                    RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, outlineBBSourceNBS, panelPlane, tol);
+
+                    switch (status)
+                    {
+                        case RegionContainment.Disjoint:
+                            comment.Append(new GH_String("Disjoint and outlineBBSourceNBS is closed: "+ outlineBBSourceNBS.IsClosed.ToString()), areaPath);
+                            glareOutline.Append(null, areaPath);
+                            glareAreas.Append(new GH_Number(0.00), areaPath);
+                            outlineProj.Append(new GH_Curve(outlineBBSourceNBS), areaPath);
+                            break;
+
+                        case RegionContainment.MutualIntersection:
+                            comment.Append(new GH_String("MutualIntersection, intersection of projected source and wall"), areaPath);
+                            outlineProj.Append(new GH_Curve(outlineBBSourceNBS), areaPath);
+                            break;
+
+                        case RegionContainment.AInsideB:
+                            comment.Append(new GH_String("AInsideB, wall inside projected source"), areaPath);
+                            glareOutline.Append(new GH_Mesh(wallPanel), areaPath);
+                            glareAreas.Append(new GH_Number(areaWallPanel), areaPath);
+                            outlineProj.Append(new GH_Curve(outlineBBSourceNBS), areaPath);
+                            break;
+
+                        case RegionContainment.BInsideA:
+                            comment.Append(new GH_String("BInsideA, projected source wholly inside wall"), areaPath);
+                            glareOutline.Append(new GH_Mesh(currentProjSource), areaPath);
+                            glareAreas.Append(new GH_Number(AreaMassProperties.Compute(currentProjSource).Area),areaPath);
+                            outlineProj.Append(new GH_Curve(outlineBBSourceNBS), areaPath);
+                            break;
+                    }
 
                 }
-                
+
 
             }
 
@@ -108,6 +167,7 @@ namespace SunTools.Component
             DA.SetDataTree(0, glareOutline);
             DA.SetDataTree(1, glareAreas);
             DA.SetDataTree(2, comment);
+            DA.SetDataTree(3, outlineProj);
         }
 
         /// <summary>
