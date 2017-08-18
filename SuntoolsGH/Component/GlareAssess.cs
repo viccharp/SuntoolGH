@@ -26,7 +26,7 @@ namespace SunTools.Component
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddMeshParameter("Wall Panel", "wpanel", "A list of planar meshes representing wall panels", GH_ParamAccess.item);
-            pManager.AddMeshParameter("Source Outline", "soutline", "A list of closed curves as direct light sources", GH_ParamAccess.list);
+            pManager.AddMeshParameter("Source Outline", "sourceOL", "A list of closed curves as direct light sources", GH_ParamAccess.list);
             pManager.AddVectorParameter("Projection direction vector", "dir", "List of vectors for projection onto the wall panels", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Launch the analysis", "start", "If bool is True: analysis is running, if bool is False: analysis stopped", GH_ParamAccess.item);
         }
@@ -49,7 +49,7 @@ namespace SunTools.Component
         {
             // input variables
             var wallPanel = new Mesh();
-            var source = new List<Mesh>();
+            var source = new List<Mesh>(); //this is the exposed surface on the window (source of glare)
             var sunVector = new List<Vector3d>();
             var run = new bool();
 
@@ -72,11 +72,35 @@ namespace SunTools.Component
             var areaResult = new GH_Structure<GH_Number>();
             var comment = new GH_Structure<GH_String>();
 
+            // Define wall plane
+            var panelOutlineList = new List<Polyline>(wallPanel.GetNakedEdges());
+            if (panelOutlineList.Count > 1) { return; }
+
+            //// Define panel outline as a nurbscurve 
+            //var panelOutline = new Polyline(panelOutlineList[0]).ToNurbsCurve();
+
+            var panelPlane = new Plane();
+            Plane.FitPlaneToPoints(panelOutlineList[0], out panelPlane);
+
+
+
             for (int i = 0; i < source.Count; i++)
             {
+                // Define source Path for output 
+                var areaPath=new GH_Path(i);
 
+                for (int j = 0; j < sunVector.Count; j++)
+                {
+                    // Define projection transform
+                    var currentProjTrans = GetObliqueTransformation(panelPlane, sunVector[j]);
 
+                    // Define projected source mesh
+                    var currentProjSource = source[i].Transform(currentProjTrans);
+                    
+                    // Define outlines of bounding boxes for the wall panel and the projected source
 
+                }
+                
 
             }
 
@@ -109,8 +133,8 @@ See: http://stackoverflow.com/questions/2500499/howto-project-a-planar-p...
         public Transform GetObliqueTransformation(Plane pln, Vector3d v)
         {
 
-            Transform oblique = new Transform(1);
-            double[] eq = pln.GetPlaneEquation();
+            var oblique = new Transform(1);
+            var eq = pln.GetPlaneEquation();
             double a, b, c, d, dx, dy, dz, D;
             a = eq[0];
             b = eq[1];
