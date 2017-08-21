@@ -1,10 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 
-using Grasshopper.Kernel;
 using Rhino.Geometry;
+
+using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
+
+using MIConvexHull;
+
+using System.Linq;
 
 namespace SunTools.Component
 {
@@ -39,7 +44,8 @@ namespace SunTools.Component
             pManager.AddMeshParameter("Mesh of Glare on the wall panel", "GlareMesh", "Tree of meshes for glare on the wall panel", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Area of Glare on the wall panel", "GlareArea", "Area of the exposed part of the façade panel", GH_ParamAccess.tree);
             pManager.AddTextParameter("Comment on operation type", "outCom", "", GH_ParamAccess.tree);
-            pManager.AddCurveParameter("projected mesh of glare for debugging", "projSourceMesh", "Area of the exposed part of the wall plane", GH_ParamAccess.tree);
+            pManager.AddCurveParameter("proj mesh convex hull of glare for debugging", "projSourceMeshCVXHull", "", GH_ParamAccess.tree);
+            pManager.AddMeshParameter("mesh cutter", "meshCutter", "", GH_ParamAccess.list);
         }
 
         /// <summary>
@@ -65,7 +71,7 @@ namespace SunTools.Component
 
 
             // output variables
-            var glareOutline = new GH_Structure<GH_Mesh>();
+            var GlareMesh = new GH_Structure<GH_Mesh>();
             var glareAreas = new GH_Structure<GH_Number>();
 
             // temporary output variables
@@ -74,7 +80,8 @@ namespace SunTools.Component
             var comment = new GH_Structure<GH_String>();
 
             //debug variable
-            var outlineProj= new GH_Structure<GH_Curve>();
+            var projSourceMeshCVXHull = new GH_Structure<GH_Curve>();
+            var meshCutterOut = new GH_Structure<GH_Mesh>();
 
             // Define wall plane
             if (!wallPanel.IsValid) { return; }
@@ -86,8 +93,10 @@ namespace SunTools.Component
             var wNV = wallPanel.Normals[0];
             wNV.Unitize();
 
-            // Area of wall panel
-            var areaWallPanel = AreaMassProperties.Compute(wallPanel).Area;
+            // Area and centroid of wall panel
+            var propWallPanel = AreaMassProperties.Compute(wallPanel);
+            var areaWallPanel = propWallPanel.Area;
+            var centroidWallPanel = propWallPanel.Centroid;
 
             // Define panel outline as a nurbscurve 
             var panelOutline = new Polyline(panelOutlineList[0]).ToNurbsCurve();
@@ -98,6 +107,8 @@ namespace SunTools.Component
             tempCutter.Translate(Vector3d.Multiply(new Vector3d(wNV), -0.5));
 
             var meshCutter = Mesh.CreateFromBrep(tempCutter.ToBrep(), MeshingParameters.Coarse);
+            //var MCGH = new List<GH_Mesh>();
+            //foreach (var mesh in meshCutter) { MCGH.Add(new GH_Mesh(mesh)); }
 
             var panelPlane = new Plane();
             Plane.FitPlaneToPoints(panelOutlineList[0], out panelPlane);
@@ -117,44 +128,75 @@ namespace SunTools.Component
                     var currentProjSource = source[i];
                     currentProjSource.Transform(currentProjTrans);
 
-                    // Outline of bounding box
-                    var outlineBBSource = new Polyline(Point3d.SortAndCullPointList(currentProjSource.GetBoundingBox(true).GetCorners(),tol));
-                    outlineBBSource.Add(source[i].GetBoundingBox(true).GetCorners()[0]);
+                    // Define centroid of current projected source
+                    var currentProjOutCentroid = AreaMassProperties.Compute(currentProjSource).Centroid;
 
-                    var outlineBBSourceNBS = outlineBBSource.ToNurbsCurve();
-                    if (!outlineBBSourceNBS.IsClosed) { outlineBBSourceNBS.MakeClosed(0.1); }
+                    //// Edge of for inclusion testing mesh
 
-                    if (!outlineBBSourceNBS.IsClosed) { return; }
+                    //var meshNkdEdges = currentProjSource.GetNakedEdges();
+                    //var max = -9999.0;
+                    //var maxEdge = new Polyline().ToNurbsCurve();
+
+                    //foreach (var edge in meshNkdEdges)
+                    //{
+                    //    var areatemp = AreaMassProperties.Compute(edge.ToNurbsCurve()).Area;
+                    //    if (areatemp > max)
+                    //    {
+                    //        max = areatemp;
+                    //        maxEdge = edge.ToNurbsCurve();
+                    //    }
+                    //}
+                    //if (!maxEdge.IsClosed) { return; }
 
 
-                    RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, outlineBBSourceNBS, panelPlane, tol);
+                    // Convex hull of the mesh vertices
+                    var convexHullCurve = ConvexHullMesh(currentProjSource);
+                    projSourceMeshCVXHull.Append(new GH_Curve(convexHullCurve), areaPath);
+
+
+
+                    RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, convexHullCurve, panelPlane, tol);
 
                     switch (status)
                     {
                         case RegionContainment.Disjoint:
-                            comment.Append(new GH_String("Disjoint and outlineBBSourceNBS is closed: "+ outlineBBSourceNBS.IsClosed.ToString()), areaPath);
-                            glareOutline.Append(null, areaPath);
+                            comment.Append(new GH_String("Disjoint"), areaPath);
+                            GlareMesh.Append(null, areaPath);
                             glareAreas.Append(new GH_Number(0.00), areaPath);
-                            outlineProj.Append(new GH_Curve(outlineBBSourceNBS), areaPath);
+                            
                             break;
 
                         case RegionContainment.MutualIntersection:
                             comment.Append(new GH_String("MutualIntersection, intersection of projected source and wall"), areaPath);
-                            outlineProj.Append(new GH_Curve(outlineBBSourceNBS), areaPath);
+                            
+                            var splitMesh = currentProjSource.Split(meshCutter);
+                            var minCentroidDistance = 9999.0;
+                            var resultMesh = new Mesh();
+                            foreach (var tempmesh in splitMesh)
+                            {
+                                var tempDistanceCentroid = (centroidWallPanel - AreaMassProperties.Compute(tempmesh).Centroid).Length;
+                                if (tempDistanceCentroid < minCentroidDistance)
+                                {
+                                    minCentroidDistance = tempDistanceCentroid;
+                                    resultMesh = tempmesh;
+                                }
+                            }
+                            GlareMesh.Append(new GH_Mesh(resultMesh), areaPath);
+                            glareAreas.Append(new GH_Number(AreaMassProperties.Compute(resultMesh).Area));
                             break;
 
                         case RegionContainment.AInsideB:
                             comment.Append(new GH_String("AInsideB, wall inside projected source"), areaPath);
-                            glareOutline.Append(new GH_Mesh(wallPanel), areaPath);
+                            GlareMesh.Append(new GH_Mesh(wallPanel), areaPath);
                             glareAreas.Append(new GH_Number(areaWallPanel), areaPath);
-                            outlineProj.Append(new GH_Curve(outlineBBSourceNBS), areaPath);
+                            
                             break;
 
                         case RegionContainment.BInsideA:
                             comment.Append(new GH_String("BInsideA, projected source wholly inside wall"), areaPath);
-                            glareOutline.Append(new GH_Mesh(currentProjSource), areaPath);
-                            glareAreas.Append(new GH_Number(AreaMassProperties.Compute(currentProjSource).Area),areaPath);
-                            outlineProj.Append(new GH_Curve(outlineBBSourceNBS), areaPath);
+                            GlareMesh.Append(new GH_Mesh(currentProjSource), areaPath);
+                            glareAreas.Append(new GH_Number(AreaMassProperties.Compute(currentProjSource).Area), areaPath);
+                            
                             break;
                     }
 
@@ -164,10 +206,11 @@ namespace SunTools.Component
             }
 
 
-            DA.SetDataTree(0, glareOutline);
+            DA.SetDataTree(0, GlareMesh);
             DA.SetDataTree(1, glareAreas);
             DA.SetDataTree(2, comment);
-            DA.SetDataTree(3, outlineProj);
+            DA.SetDataTree(3, projSourceMeshCVXHull);
+            DA.SetDataList(4, meshCutter);
         }
 
         /// <summary>
@@ -222,6 +265,55 @@ See: http://stackoverflow.com/questions/2500499/howto-project-a-planar-p...
             oblique.M33 = 1;
             return oblique;
         }
+
+
+        public NurbsCurve ConvexHullMesh(Mesh msh)
+        {
+            var meshVertices = Pts3dArraytoVertexList(msh.Vertices.ToPoint3dArray());
+            
+            var convexHull = ConvexHull.Create(meshVertices);
+            double[][] hullPoints = convexHull.Points.Select(p => p.Position).ToArray();
+
+
+
+            var hullCurve = new Polyline(DoubleArraytoPts3dList(hullPoints));
+            if (!hullCurve.IsClosed) { hullCurve.Add(hullCurve[0]); }
+
+            return hullCurve.ToNurbsCurve();
+        }
+
+        public List<DefaultVertex> Pts3dArraytoVertexList(Point3d[] ptsArray)
+        {
+            var vertexList = new List<DefaultVertex>();
+            var tempTranslatation = new List<Double[]>();
+            for (int i = 0; i < ptsArray.Length; i++)
+            {
+                tempTranslatation.Add(new double[3] { ptsArray[i].X, ptsArray[i].Y, ptsArray[i].Z });
+            }
+            vertexList=tempTranslatation.Select(p => new DefaultVertex { Position = p }).ToList() ;
+            return vertexList;
+        }
+
+        public List<Point3d> vrtxLsttoPts3dList(List<Vertex> vrtxList)
+        {
+            var LstPts3D = new List<Point3d>();
+            for (int i=0 ; i< vrtxList.Count; i++)
+            {
+                LstPts3D.Add(new Point3d(vrtxList[i].Position[0], vrtxList[i].Position[1], vrtxList[i].Position[2]));
+            }
+            return LstPts3D;
+        }
+
+        public List<Point3d> DoubleArraytoPts3dList(Double[][] vrtxList)
+        {
+            var LstPts3D = new List<Point3d>();
+            for (int i = 0; i < vrtxList.Length; i++)
+            {
+                LstPts3D.Add(new Point3d(vrtxList[i][0], vrtxList[i][1], vrtxList[i][2]));
+            }
+            return LstPts3D;
+        }
+
 
         /// <summary>
         /// Gets the unique ID for this component. Do not change this ID after release.

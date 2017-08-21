@@ -76,6 +76,10 @@
     <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="MIConvexHull, Version=1.0.17.411, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\MIConvexHull.1.1.17.0412\lib\portable-net4+sl4+wp7+win8\MIConvexHull.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System">
       <Private>False</Private>
     </Reference>
@@ -106,6 +110,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Auxilaries\RegionInter.cs" />
+    <Compile Include="Vertex.cs" />
     <Compile Include="Component\GlareAssessListWIP.cs" />
     <Compile Include="Component\GlareAssess.cs" />
     <Compile Include="Component\SeasonCoef.cs" />
@@ -118,7 +123,9 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Content Include="MIConvexHull.xml" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
