@@ -280,9 +280,10 @@ See: http://stackoverflow.com/questions/2500499/howto-project-a-planar-p...
             }
 
             var convexHull = ConvexHull.Create(meshVertices,1e-6);
+            if (convexHull == null) throw new ArgumentNullException(nameof(convexHull));
             double[][] hullPoints = convexHull.Points.Select(p => p.Position).ToArray();
             
-            var hullCurve = new Polyline(DoubleArraytoPts3dList(hullPoints));
+            var hullCurve = new Polyline(DoubleArraytoPts3DList(hullPoints));
             if (!hullCurve.IsClosed) { hullCurve.Add(hullCurve[0]); }
 
             return hullCurve.ToNurbsCurve();
@@ -294,23 +295,23 @@ See: http://stackoverflow.com/questions/2500499/howto-project-a-planar-p...
             var tempTranslatation = new List<Double[]>();
             for (int i = 0; i < ptsArray.Length; i++)
             {
-                tempTranslatation.Add(new double[3] { ptsArray[i].X, ptsArray[i].Y, ptsArray[i].Z });
+                tempTranslatation.Add(new double[] { ptsArray[i].X, ptsArray[i].Y, ptsArray[i].Z });
             }
             vertexList=tempTranslatation.Select(p => new DefaultVertex { Position = p }).ToList() ;
             return vertexList;
         }
 
-        public List<Point3d> vrtxLsttoPts3dList(List<Vertex> vrtxList)
+        public List<Point3d> VrtxLsttoPts3DList(List<Vertex> vrtxList)
         {
-            var LstPts3D = new List<Point3d>();
+            var lstPts3D = new List<Point3d>();
             for (int i=0 ; i< vrtxList.Count; i++)
             {
-                LstPts3D.Add(new Point3d(vrtxList[i].Position[0], vrtxList[i].Position[1], vrtxList[i].Position[2]));
+                lstPts3D.Add(new Point3d(vrtxList[i].Position[0], vrtxList[i].Position[1], vrtxList[i].Position[2]));
             }
-            return LstPts3D;
+            return lstPts3D;
         }
 
-        public List<Point3d> DoubleArraytoPts3dList(Double[][] vrtxList)
+        public List<Point3d> DoubleArraytoPts3DList(Double[][] vrtxList)
         {
             var LstPts3D = new List<Point3d>();
             for (int i = 0; i < vrtxList.Length; i++)
