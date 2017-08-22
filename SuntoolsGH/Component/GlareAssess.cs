@@ -44,8 +44,8 @@ namespace SunTools.Component
             pManager.AddMeshParameter("Mesh of Glare on the wall panel", "GlareMesh", "Tree of meshes for glare on the wall panel", GH_ParamAccess.tree);
             pManager.AddNumberParameter("Area of Glare on the wall panel", "GlareArea", "Area of the exposed part of the façade panel", GH_ParamAccess.tree);
             pManager.AddTextParameter("Comment on operation type", "outCom", "", GH_ParamAccess.tree);
-            pManager.AddCurveParameter("proj mesh convex hull of glare for debugging", "projSourceMeshCVXHull", "", GH_ParamAccess.tree);
-            pManager.AddMeshParameter("mesh cutter", "meshCutter", "", GH_ParamAccess.list);
+            //pManager.AddCurveParameter("proj mesh convex hull of glare for debugging", "projSourceMeshCVXHull", "", GH_ParamAccess.tree);
+            //pManager.AddMeshParameter("mesh cutter", "meshCutter", "", GH_ParamAccess.list);
         }
 
         /// <summary>
@@ -80,8 +80,8 @@ namespace SunTools.Component
             var comment = new GH_Structure<GH_String>();
 
             //debug variable
-            var projSourceMeshCVXHull = new GH_Structure<GH_Curve>();
-            var meshCutterOut = new GH_Structure<GH_Mesh>();
+            //var projSourceMeshCVXHull = new GH_Structure<GH_Curve>();
+            //var meshCutterOut = new GH_Structure<GH_Mesh>();
 
             // Define wall plane
             if (!wallPanel.IsValid) { return; }
@@ -130,6 +130,7 @@ namespace SunTools.Component
 
                     // Define centroid of current projected source
                     var currentProjOutCentroid = AreaMassProperties.Compute(currentProjSource).Centroid;
+                    var dsjtMeshCount = currentProjSource.DisjointMeshCount;
 
                     //// Edge of for inclusion testing mesh
 
@@ -151,7 +152,7 @@ namespace SunTools.Component
 
                     // Convex hull of the mesh vertices
                     var convexHullCurve = ConvexHullMesh(currentProjSource, panelPlane);
-                    projSourceMeshCVXHull.Append(new GH_Curve(convexHullCurve), areaPath);
+                    //projSourceMeshCVXHull.Append(new GH_Curve(convexHullCurve), areaPath);
 
 
 
@@ -181,6 +182,19 @@ namespace SunTools.Component
                                     resultMesh = tempmesh;
                                 }
                             }
+                            if (resultMesh.DisjointMeshCount != dsjtMeshCount)
+                            {
+                                var dsjtCurrentProjSource = currentProjSource.SplitDisjointPieces();
+                                foreach (var dsjtmesh in dsjtCurrentProjSource)
+                                {
+                                    var tempHullCurve= ConvexHullMesh(dsjtmesh, panelPlane);
+                                    if (Curve.PlanarClosedCurveRelationship(panelOutline, tempHullCurve, panelPlane, tol) == RegionContainment.BInsideA)
+                                    {
+                                        resultMesh.Append(dsjtmesh);
+                                    }
+                                }
+                            }
+
                             GlareMesh.Append(new GH_Mesh(resultMesh), areaPath);
                             glareAreas.Append(new GH_Number(AreaMassProperties.Compute(resultMesh).Area));
                             break;
@@ -209,8 +223,8 @@ namespace SunTools.Component
             DA.SetDataTree(0, GlareMesh);
             DA.SetDataTree(1, glareAreas);
             DA.SetDataTree(2, comment);
-            DA.SetDataTree(3, projSourceMeshCVXHull);
-            DA.SetDataList(4, meshCutter);
+            //DA.SetDataTree(3, projSourceMeshCVXHull);
+            //DA.SetDataList(4, meshCutter);
         }
 
         /// <summary>
