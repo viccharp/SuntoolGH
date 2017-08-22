@@ -150,7 +150,7 @@ namespace SunTools.Component
 
 
                     // Convex hull of the mesh vertices
-                    var convexHullCurve = ConvexHullMesh(currentProjSource);
+                    var convexHullCurve = ConvexHullMesh(currentProjSource, panelPlane);
                     projSourceMeshCVXHull.Append(new GH_Curve(convexHullCurve), areaPath);
 
 
@@ -267,58 +267,52 @@ See: http://stackoverflow.com/questions/2500499/howto-project-a-planar-p...
         }
 
 
-        public NurbsCurve ConvexHullMesh(Mesh msh)
+        public NurbsCurve ConvexHullMesh(Mesh msh, Plane pl)
         {
-            //var meshVertices = Pts3dArraytoVertexList(msh.Vertices.ToPoint3dArray());
+  
+            var worldPlane = new Plane(new Point3d(0.0, 0.0, 0.0), new Vector3d(0.0, 0.0, 1.0));
+            var BC = Transform.ChangeBasis(worldPlane, pl);
+            var BCB = Transform.ChangeBasis(pl, worldPlane);
+            var tempMsh = new Mesh();
+            tempMsh.CopyFrom(msh);
 
-            //var meshVertices = new Vertex[msh.Vertices.Count];
-            var meshVertices = new List<Vertex>();
+            tempMsh.Transform(BC);
+            var vertices = new Vertex2D[tempMsh.Vertices.Count];
+            var mshPts = tempMsh.Vertices.ToPoint3dArray();
+            for (int i = 0; i < tempMsh.Vertices.Count; i++) vertices[i] = new Vertex2D(mshPts[i].X, mshPts[i].Y);
 
-            for (int i = 0; i < msh.Vertices.Count; i++)
-            {
-                meshVertices.Add(new Vertex(new Point3d(msh.Vertices.ToPoint3dArray()[i])));
-            }
+            var convexHull = ConvexHull.Create<Vertex2D>(vertices);
+            var hullPts = DoubleArraytoPts3DList(convexHull.Points.Select(p => p.Position).ToArray());
 
-            var convexHull = ConvexHull.Create(meshVertices,1e-6);
-            if (convexHull == null) throw new ArgumentNullException(nameof(convexHull));
-            double[][] hullPoints = convexHull.Points.Select(p => p.Position).ToArray();
-            
-            var hullCurve = new Polyline(DoubleArraytoPts3DList(hullPoints));
+            var hullPtsWorld = new Point3d[hullPts.Count];
+            hullPts.CopyTo(hullPtsWorld);
+            for (int i = 0; i < hullPts.Count; i++) hullPtsWorld[i].Transform(BCB);
+
+            var hullCurve = new Polyline(hullPtsWorld);
             if (!hullCurve.IsClosed) { hullCurve.Add(hullCurve[0]); }
 
             return hullCurve.ToNurbsCurve();
         }
-
-        public List<DefaultVertex> Pts3dArraytoVertexList(Point3d[] ptsArray)
-        {
-            var vertexList = new List<DefaultVertex>();
-            var tempTranslatation = new List<Double[]>();
-            for (int i = 0; i < ptsArray.Length; i++)
-            {
-                tempTranslatation.Add(new double[] { ptsArray[i].X, ptsArray[i].Y, ptsArray[i].Z });
-            }
-            vertexList=tempTranslatation.Select(p => new DefaultVertex { Position = p }).ToList() ;
-            return vertexList;
-        }
-
-        public List<Point3d> VrtxLsttoPts3DList(List<Vertex> vrtxList)
-        {
-            var lstPts3D = new List<Point3d>();
-            for (int i=0 ; i< vrtxList.Count; i++)
-            {
-                lstPts3D.Add(new Point3d(vrtxList[i].Position[0], vrtxList[i].Position[1], vrtxList[i].Position[2]));
-            }
-            return lstPts3D;
-        }
-
-        public List<Point3d> DoubleArraytoPts3DList(Double[][] vrtxList)
+        
+        public List<Point3d> DoubleArraytoPts3DList(Double[][] vrtxArray)
         {
             var LstPts3D = new List<Point3d>();
-            for (int i = 0; i < vrtxList.Length; i++)
+            if (vrtxArray[0].Length == 2)
             {
-                LstPts3D.Add(new Point3d(vrtxList[i][0], vrtxList[i][1], vrtxList[i][2]));
+                for (int i = 0; i < vrtxArray.Length; i++)
+                {
+                    LstPts3D.Add(new Point3d(vrtxArray[i][0], vrtxArray[i][1], 0));
+                }
+                return LstPts3D;
             }
-            return LstPts3D;
+            else
+            {
+                for (int i = 0; i < vrtxArray.Length; i++)
+                {
+                    LstPts3D.Add(new Point3d(vrtxArray[i][0], vrtxArray[i][1], vrtxArray[i][2]));
+                }
+                return LstPts3D;
+            }
         }
 
 

@@ -110,6 +110,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Auxilaries\RegionInter.cs" />
+    <Compile Include="Vertex2D.cs" />
     <Compile Include="Vertex.cs" />
     <Compile Include="Component\GlareAssessListWIP.cs" />
     <Compile Include="Component\GlareAssess.cs" />
