@@ -269,13 +269,19 @@ See: http://stackoverflow.com/questions/2500499/howto-project-a-planar-p...
 
         public NurbsCurve ConvexHullMesh(Mesh msh)
         {
-            var meshVertices = Pts3dArraytoVertexList(msh.Vertices.ToPoint3dArray());
-            
-            var convexHull = ConvexHull.Create(meshVertices);
+            //var meshVertices = Pts3dArraytoVertexList(msh.Vertices.ToPoint3dArray());
+
+            //var meshVertices = new Vertex[msh.Vertices.Count];
+            var meshVertices = new List<Vertex>();
+
+            for (int i = 0; i < msh.Vertices.Count; i++)
+            {
+                meshVertices.Add(new Vertex(new Point3d(msh.Vertices.ToPoint3dArray()[i])));
+            }
+
+            var convexHull = ConvexHull.Create(meshVertices,1e-6);
             double[][] hullPoints = convexHull.Points.Select(p => p.Position).ToArray();
-
-
-
+            
             var hullCurve = new Polyline(DoubleArraytoPts3dList(hullPoints));
             if (!hullCurve.IsClosed) { hullCurve.Add(hullCurve[0]); }
 
@@ -313,6 +319,8 @@ See: http://stackoverflow.com/questions/2500499/howto-project-a-planar-p...
             }
             return LstPts3D;
         }
+
+
 
 
         /// <summary>
