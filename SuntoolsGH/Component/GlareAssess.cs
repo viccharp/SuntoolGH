@@ -42,10 +42,8 @@ namespace SunTools.Component
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddMeshParameter("Mesh of Glare on the wall panel", "GlareMesh", "Tree of meshes for glare on the wall panel", GH_ParamAccess.tree);
-            pManager.AddNumberParameter("Area of Glare on the wall panel", "GlareArea", "Area of the exposed part of the façade panel", GH_ParamAccess.tree);
+            pManager.AddNumberParameter("Area of Glare on the wall panel", "GlareArea", "Area of the exposed part of the window panel", GH_ParamAccess.tree);
             pManager.AddTextParameter("Comment on operation type", "outCom", "", GH_ParamAccess.tree);
-            //pManager.AddCurveParameter("proj mesh convex hull of glare for debugging", "projSourceMeshCVXHull", "", GH_ParamAccess.tree);
-            //pManager.AddMeshParameter("mesh cutter", "meshCutter", "", GH_ParamAccess.list);
         }
 
         /// <summary>
@@ -73,17 +71,9 @@ namespace SunTools.Component
             // output variables
             var GlareMesh = new GH_Structure<GH_Mesh>();
             var glareAreas = new GH_Structure<GH_Number>();
-
-            // temporary output variables
-            var result = new GH_Structure<GH_Mesh>();
-            var areaResult = new GH_Structure<GH_Number>();
             var comment = new GH_Structure<GH_String>();
 
-            //debug variable
-            //var projSourceMeshCVXHull = new GH_Structure<GH_Curve>();
-            //var meshCutterOut = new GH_Structure<GH_Mesh>();
-
-            // Define wall plane
+            // Define wall outline
             if (!wallPanel.IsValid) { return; }
             var panelOutlineList = new List<Polyline>(wallPanel.GetNakedEdges());
             if (panelOutlineList.Count > 1) { return; }
@@ -98,25 +88,23 @@ namespace SunTools.Component
             var areaWallPanel = propWallPanel.Area;
             var centroidWallPanel = propWallPanel.Centroid;
 
-            // Define panel outline as a nurbscurve 
+            // Define panel outline as a nurbscurve
             var panelOutline = new Polyline(panelOutlineList[0]).ToNurbsCurve();
             if (!panelOutline.IsClosed) { panelOutline.MakeClosed(0.01); }
 
-            // define cutter for mesh
+            // Define cutter for mesh
             var tempCutter = Surface.CreateExtrusion(panelOutline, wNV);
             tempCutter.Translate(Vector3d.Multiply(new Vector3d(wNV), -0.5));
-
             var meshCutter = Mesh.CreateFromBrep(tempCutter.ToBrep(), MeshingParameters.Coarse);
-            //var MCGH = new List<GH_Mesh>();
-            //foreach (var mesh in meshCutter) { MCGH.Add(new GH_Mesh(mesh)); }
 
+            // Define Wall plane
             var panelPlane = new Plane();
             Plane.FitPlaneToPoints(panelOutlineList[0], out panelPlane);
 
 
             for (int i = 0; i < source.Count; i++)
             {
-                // Define source Path for output 
+                // Define source Path for output
                 var areaPath = new GH_Path(i);
 
                 for (int j = 0; j < sunVector.Count; j++)
@@ -132,29 +120,8 @@ namespace SunTools.Component
                     var currentProjOutCentroid = AreaMassProperties.Compute(currentProjSource).Centroid;
                     var dsjtMeshCount = currentProjSource.DisjointMeshCount;
 
-                    //// Edge of for inclusion testing mesh
-
-                    //var meshNkdEdges = currentProjSource.GetNakedEdges();
-                    //var max = -9999.0;
-                    //var maxEdge = new Polyline().ToNurbsCurve();
-
-                    //foreach (var edge in meshNkdEdges)
-                    //{
-                    //    var areatemp = AreaMassProperties.Compute(edge.ToNurbsCurve()).Area;
-                    //    if (areatemp > max)
-                    //    {
-                    //        max = areatemp;
-                    //        maxEdge = edge.ToNurbsCurve();
-                    //    }
-                    //}
-                    //if (!maxEdge.IsClosed) { return; }
-
-
                     // Convex hull of the mesh vertices
                     var convexHullCurve = ConvexHullMesh(currentProjSource, panelPlane);
-                    //projSourceMeshCVXHull.Append(new GH_Curve(convexHullCurve), areaPath);
-
-
 
                     RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, convexHullCurve, panelPlane, tol);
 
@@ -164,12 +131,12 @@ namespace SunTools.Component
                             comment.Append(new GH_String("Disjoint"), areaPath);
                             GlareMesh.Append(null, areaPath);
                             glareAreas.Append(new GH_Number(0.00), areaPath);
-                            
+
                             break;
 
                         case RegionContainment.MutualIntersection:
                             comment.Append(new GH_String("MutualIntersection, intersection of projected source and wall"), areaPath);
-                            
+
                             var splitMesh = currentProjSource.Split(meshCutter);
                             var minCentroidDistance = 9999.0;
                             var resultMesh = new Mesh();
@@ -200,22 +167,21 @@ namespace SunTools.Component
                             break;
 
                         case RegionContainment.AInsideB:
-                            comment.Append(new GH_String("AInsideB, wall inside projected source"), areaPath);
+                            comment.Append(new GH_String("AInsideB, wall inside convexhull of projected source"), areaPath);
                             GlareMesh.Append(new GH_Mesh(wallPanel), areaPath);
                             glareAreas.Append(new GH_Number(areaWallPanel), areaPath);
-                            
+
                             break;
 
                         case RegionContainment.BInsideA:
                             comment.Append(new GH_String("BInsideA, projected source wholly inside wall"), areaPath);
                             GlareMesh.Append(new GH_Mesh(currentProjSource), areaPath);
                             glareAreas.Append(new GH_Number(AreaMassProperties.Compute(currentProjSource).Area), areaPath);
-                            
+
                             break;
                     }
 
                 }
-
 
             }
 
@@ -223,8 +189,6 @@ namespace SunTools.Component
             DA.SetDataTree(0, GlareMesh);
             DA.SetDataTree(1, glareAreas);
             DA.SetDataTree(2, comment);
-            //DA.SetDataTree(3, projSourceMeshCVXHull);
-            //DA.SetDataList(4, meshCutter);
         }
 
         /// <summary>
@@ -283,7 +247,7 @@ See: http://stackoverflow.com/questions/2500499/howto-project-a-planar-p...
 
         public NurbsCurve ConvexHullMesh(Mesh msh, Plane pl)
         {
-  
+
             var worldPlane = new Plane(new Point3d(0.0, 0.0, 0.0), new Vector3d(0.0, 0.0, 1.0));
             var BC = Transform.ChangeBasis(worldPlane, pl);
             var BCB = Transform.ChangeBasis(pl, worldPlane);
@@ -307,7 +271,7 @@ See: http://stackoverflow.com/questions/2500499/howto-project-a-planar-p...
 
             return hullCurve.ToNurbsCurve();
         }
-        
+
         public List<Point3d> DoubleArraytoPts3DList(Double[][] vrtxArray)
         {
             var LstPts3D = new List<Point3d>();

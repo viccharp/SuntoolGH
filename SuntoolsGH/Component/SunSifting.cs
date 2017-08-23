@@ -31,7 +31,7 @@ namespace SunTools.Component
             pManager.AddNumberParameter("sun azimuth", "sazi","List of sun azimuth angles - north 0° - east 90° - south 180° - west 270°",GH_ParamAccess.list);
             pManager.AddNumberParameter("sun altitude", "salt", "List of sun altitude angles - horizontal 0° - Vertical 90°", GH_ParamAccess.list);
             pManager.AddNumberParameter("associated sun hours", "shours", "List of hours between 0 and 8752(=24*365) associated with a sun orientation", GH_ParamAccess.list);
-            pManager.AddMeshParameter("Façade panel to evaluate", "pmesh", "List of façade panels subject of sun radiation assessment", GH_ParamAccess.list);
+            pManager.AddMeshParameter("window panel to evaluate", "pmesh", "List of window panels subject of sun radiation assessment", GH_ParamAccess.list);
             
         }
 
