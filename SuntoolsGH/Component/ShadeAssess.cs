@@ -43,6 +43,7 @@ namespace SunTools.Component
             pManager.AddTextParameter("Comment on operation type", "outCom",
                 "", GH_ParamAccess.tree);
             pManager.AddMeshParameter("debug meshcutter", "meshcutter", "", GH_ParamAccess.tree);
+            pManager.AddCurveParameter("debug hull", "hullCrv", "", GH_ParamAccess.tree);
 
         }
 
@@ -94,6 +95,7 @@ namespace SunTools.Component
 
             // Debug var
             var MshCttr = new GH_Structure<GH_Mesh>();
+            var hullCrv = new GH_Structure<GH_Curve>();
 
             for (int i = 0; i < shadeModule.Count; i++)
             {
@@ -107,7 +109,8 @@ namespace SunTools.Component
                     projectToWindowPanel = GetObliqueTransformation(windowPlane, sunVector[j]);
 
                     // Project shade outline to panel plane along the sun vector direction
-                    var currentShadeProj = shadeModule[i];
+                    var currentShadeProj = new Mesh();
+                    currentShadeProj.CopyFrom(shadeModule[i]);
                     currentShadeProj.Transform(projectToWindowPanel);
 
                     // Create currentShadeProj Outline
@@ -132,6 +135,7 @@ namespace SunTools.Component
 
                     // Convex hull of the projected mesh's vertices
                     var convexHullCurve = ConvexHullMesh(currentShadeProj, windowPlane);
+                    hullCrv.Append(new GH_Curve(convexHullCurve), p1);
 
                     // Determine the difference of the panel outline - the shade outline
                     RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, convexHullCurve, windowPlane, tol);
@@ -139,31 +143,56 @@ namespace SunTools.Component
                     switch (status)
                     {
                         case RegionContainment.Disjoint:
-                            //result.Append(new GH_Mesh(windowPanel), p1);
-                            //areaResult.Append(new GH_Number(windowArea), p1);
+                            result.Append(new GH_Mesh(windowPanel), p1);
+                            areaResult.Append(new GH_Number(windowArea), p1);
                             comment.Append(new GH_String("Disjoint, case 1"),p1);
                             break;
                         case RegionContainment.MutualIntersection:
                             comment.Append(new GH_String("MutualIntersection, intersection of projected source and wall"), p1);
 
-                            //var splitMesh = windowPanel.Split(meshCutter); ;
-                            //var minCentroidDistance = 9999.0;
-                            //var resultMesh = new Mesh();
+                            var splitMeshC2 = windowPanel.Split(meshCutter);
+                            var tempResult = new Mesh[splitMeshC2.Length];
+                            splitMeshC2.CopyTo(tempResult,0);
+                            var splitMeshCentroid = AreaMassProperties.Compute(splitMeshC2).Centroid;
+                            var meshCutterEdges = new List<Polyline[]>(meshCutter.Select(p=>p.GetNakedEdges()));
+
+                            for (int k = 0; k < splitMeshC2.Length; k++)
+                            {
+                                for (int m = 0; m < meshCutterEdges.Count; m++)
+                                {
+                                    if (meshCutterEdges[0].Length == 1 &&
+                                        meshCutterEdges[0][0].ToNurbsCurve().Contains(splitMeshCentroid[k]))
+                                    {
+                                        
+                                    }
+                                }
+                                
+                            }
+
+
+                            result.AppendRange(splitMeshC2.Select(p=>new  GH_Mesh(p)), p1);
+
+
+
 
                             break;
                         case RegionContainment.AInsideB:
-                            //result.Append(new GH_Mesh(windowPanel), p1);
-                            //areaResult.Append(new GH_Number(windowArea), p1);
+                            result.Append(new GH_Mesh(windowPanel), p1);
+                            areaResult.Append(new GH_Number(windowArea), p1);
                             comment.Append(new GH_String("A Inside B, the window is inside the convex hull of the projected shade module, case 3a"), p1);
                             break;
                         case RegionContainment.BInsideA:
-                            var splitMesh = windowPanel.Split(meshCutter); ;
-                            var minCentroidDistance = 9999.0;
-                            var resultMesh = new Mesh();
-
-                            result.AppendRange(splitMesh.Select(p => new GH_Mesh(p)), p1);
-                            //areaResult.Append(new GH_Number(windowArea - AreaMassProperties.Compute(currentShadeProj).Area), p1);
-                            comment.Append(new GH_String("B Inside A,  the shade module projection is inside the window, case 4"), p1);
+                            var splitMeshC4 = windowPanel.Split(meshCutter); ;
+                            var finalRes = new Mesh();
+                            foreach (var msh in splitMeshC4)
+                            {
+                                foreach (var edge in msh.GetNakedEdges())
+                                    //if (Curve.PlanarClosedCurveRelationship(edge.ToNurbsCurve(), panelOutline, windowPlane, tol)== RegionContainment.MutualIntersection) { finalRes = msh; }
+                                    if (Rhino.Geometry.Intersect.Intersection.CurveCurve(edge.ToNurbsCurve(),panelOutline,tol,0.0) != null) { finalRes = msh; }
+                            }
+                            result.Append(new GH_Mesh(finalRes), p1);
+                            areaResult.Append(new GH_Number(AreaMassProperties.Compute(finalRes).Area), p1);
+                            comment.Append(new GH_String("B Inside A,  the shade module projection is inside the window, case 4, sun vector ID: "+j.ToString()+" sun vector: "+sunVector[j].ToString()+"transformation: "+ projectToWindowPanel.ToString()), p1);
                             break;
                     }
                 }
@@ -172,7 +201,8 @@ namespace SunTools.Component
             da.SetDataTree(0, result);
             da.SetDataTree(1, areaResult);
             da.SetDataTree(2, comment);
-            da.SetDataList(3, MshCttr);
+            da.SetDataTree(3, MshCttr);
+            da.SetDataTree(4, hullCrv);
         }
 
         /// <summary>
@@ -277,6 +307,24 @@ namespace SunTools.Component
                 return LstPts3D;
             }
         }
+
+        public static T[] RemoveAt<T>(int index)
+        {
+            return RemoveAtt<T>(new T[] { }, index);
+        }
+
+        public static T[] RemoveAtt<T>( T[] source, int index)
+        {
+            T[] dest = new T[source.Length - 1];
+            if (index > 0)
+                Array.Copy(source, 0, dest, 0, index);
+
+            if (index < source.Length - 1)
+                Array.Copy(source, index + 1, dest, index, source.Length - index - 1);
+
+            return dest;
+        }
+
 
         /// <summary>
         /// Gets the unique ID for this component. Do not change this ID after release.

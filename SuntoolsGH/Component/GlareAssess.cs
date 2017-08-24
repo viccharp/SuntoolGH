@@ -143,11 +143,9 @@ namespace SunTools.Component
                             foreach (var tempmesh in splitMesh)
                             {
                                 var tempDistanceCentroid = (centroidWallPanel - AreaMassProperties.Compute(tempmesh).Centroid).Length;
-                                if (tempDistanceCentroid < minCentroidDistance)
-                                {
-                                    minCentroidDistance = tempDistanceCentroid;
-                                    resultMesh = tempmesh;
-                                }
+                                if (!(tempDistanceCentroid < minCentroidDistance)) continue;
+                                minCentroidDistance = tempDistanceCentroid;
+                                resultMesh = tempmesh;
                             }
                             if (resultMesh.DisjointMeshCount != dsjtMeshCount)
                             {
