@@ -119,9 +119,9 @@ namespace SunTools.Component
 
                     // Define cutter for mesh
                     var tempCutter = new List<Surface>();
-                    for (int k=0; k < currentShadeProjOutline.Length; k++)
+                    foreach (Polyline t in currentShadeProjOutline)
                     {
-                        tempCutter.Add(Surface.CreateExtrusion(currentShadeProjOutline[k].ToNurbsCurve(), Vector3d.Multiply(new Vector3d(wNV), 1.0)));
+                        tempCutter.Add(Surface.CreateExtrusion(t.ToNurbsCurve(), Vector3d.Multiply(new Vector3d(wNV), 1.0)));
                     }
                     foreach (var mshcuttemp in tempCutter) { mshcuttemp.Translate(Vector3d.Multiply(new Vector3d(wNV), -0.5)); }
                     var tempCutterBrep = tempCutter.Select(p => p.ToBrep());
@@ -152,32 +152,32 @@ namespace SunTools.Component
                             comment.Append(new GH_String("MutualIntersection, intersection of projected source and wall"), p1);
 
                             var splitMeshC2 = windowPanel.Split(meshCutter);
-                            //var tempResult = new Mesh[splitMeshC2.Length];
-                            //splitMeshC2.CopyTo(tempResult,0);
-                            var nakedEdgeCount = splitMeshC2.Select(p => p.GetNakedEdges().Length);
+                            var tempResult = new Mesh[splitMeshC2.Length];
+                            splitMeshC2.CopyTo(tempResult,0);
+                            var nakedEdgeCount = tempResult.Select(p => p.GetNakedEdges().Length);
                             //var sumNkdEdge = nakedEdgeCount.Sum();
 
-                            if (nakedEdgeCount.Sum() > splitMeshC2.Length)
+                            if (nakedEdgeCount.Sum() > tempResult.Length)
                             {
                                 // Pick the mesh with the most naked edges 
                                 int max = -99;
                                 var selectmesh=new Mesh();
-                                for (int k = 0; k < splitMeshC2.Length; k++)
+                                for (int k = 0; k < tempResult.Length; k++)
                                 {
                                     if (nakedEdgeCount.ToList()[k] <= max) continue;
                                     max = nakedEdgeCount.ToList()[k];
-                                    selectmesh = splitMeshC2[k];
+                                    selectmesh = tempResult[k];
                                 }
 
                                 result.Append(new GH_Mesh(selectmesh), p1);
                                 areaResult.Append(new GH_Number(AreaMassProperties.Compute(selectmesh).Area),p1);
                             }
-                            else if (nakedEdgeCount.Sum() == splitMeshC2.Length)
+                            else if (nakedEdgeCount.Sum() == tempResult.Length)
                             {
                                 var cutterCentroid = AreaMassProperties.Compute(meshCutter).Centroid;
                                 var max = -9999.99;
                                 var selectmesh = new Mesh();
-                                foreach (Mesh t in splitMeshC2)
+                                foreach (Mesh t in tempResult)
                                 {
                                     var currentCentroidSplitmesh = AreaMassProperties.Compute(t).Centroid;
                                     var currentDistanceCentroids = (cutterCentroid - currentCentroidSplitmesh).Length;
