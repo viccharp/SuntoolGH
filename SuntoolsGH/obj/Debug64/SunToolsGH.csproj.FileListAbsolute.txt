@@ -20,6 +20,5 @@ C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.pdb
 C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunToolsGH.csprojResolveAssemblyReference.cache
 C:\Users\admin\AppData\Roaming\Grasshopper\Libraries\SunTools.dll
 C:\Users\admin\AppData\Roaming\Grasshopper\Libraries\SunTools.pdb
-C:\Users\admin\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunToolsGH.csprojResolveAssemblyReference.cache
 C:\Users\admin\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.dll
 C:\Users\admin\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.pdb

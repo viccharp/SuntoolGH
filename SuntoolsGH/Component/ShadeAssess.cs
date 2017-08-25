@@ -6,6 +6,7 @@ using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Forms.VisualStyles;
 
 namespace SunTools.Component
 {
@@ -42,8 +43,8 @@ namespace SunTools.Component
             pManager.AddNumberParameter("Area of exposed", "ExposedArea", "Area of the exposed part of the window panel", GH_ParamAccess.tree);
             pManager.AddTextParameter("Comment on operation type", "outCom",
                 "", GH_ParamAccess.tree);
-            pManager.AddMeshParameter("debug meshcutter", "meshcutter", "", GH_ParamAccess.tree);
-            pManager.AddCurveParameter("debug hull", "hullCrv", "", GH_ParamAccess.tree);
+            //pManager.AddMeshParameter("debug meshcutter", "meshcutter", "", GH_ParamAccess.tree);
+            //pManager.AddCurveParameter("debug hull", "hullCrv", "", GH_ParamAccess.tree);
 
         }
 
@@ -93,9 +94,9 @@ namespace SunTools.Component
             var wNV = windowPanel.Normals[0];
             wNV.Unitize();
 
-            // Debug var
-            var MshCttr = new GH_Structure<GH_Mesh>();
-            var hullCrv = new GH_Structure<GH_Curve>();
+            //// Debug var
+            //var MshCttr = new GH_Structure<GH_Mesh>();
+            //var hullCrv = new GH_Structure<GH_Curve>();
 
             for (int i = 0; i < shadeModule.Count; i++)
             {
@@ -130,12 +131,12 @@ namespace SunTools.Component
                         meshCutterLst.AddRange(Mesh.CreateFromBrep(tempCutterBrep.ToList()[k], MeshingParameters.Coarse));
                     }
                     var meshCutter = meshCutterLst.ToArray();
-                    MshCttr.AppendRange(meshCutter.Select(p=>new GH_Mesh(p)), p1);
+                    //MshCttr.AppendRange(meshCutter.Select(p=>new GH_Mesh(p)), p1);
                     
 
                     // Convex hull of the projected mesh's vertices
                     var convexHullCurve = ConvexHullMesh(currentShadeProj, windowPlane);
-                    hullCrv.Append(new GH_Curve(convexHullCurve), p1);
+                    //hullCrv.Append(new GH_Curve(convexHullCurve), p1);
 
                     // Determine the difference of the panel outline - the shade outline
                     RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, convexHullCurve, windowPlane, tol);
@@ -151,31 +152,44 @@ namespace SunTools.Component
                             comment.Append(new GH_String("MutualIntersection, intersection of projected source and wall"), p1);
 
                             var splitMeshC2 = windowPanel.Split(meshCutter);
-                            var tempResult = new Mesh[splitMeshC2.Length];
-                            splitMeshC2.CopyTo(tempResult,0);
-                            var splitMeshCentroid = AreaMassProperties.Compute(splitMeshC2).Centroid;
-                            var meshCutterEdges = new List<Polyline[]>(meshCutter.Select(p=>p.GetNakedEdges()));
+                            //var tempResult = new Mesh[splitMeshC2.Length];
+                            //splitMeshC2.CopyTo(tempResult,0);
+                            var nakedEdgeCount = splitMeshC2.Select(p => p.GetNakedEdges().Length);
+                            //var sumNkdEdge = nakedEdgeCount.Sum();
 
-                            for (int k = 0; k < splitMeshC2.Length; k++)
+                            if (nakedEdgeCount.Sum() > splitMeshC2.Length)
                             {
-                                for (int m = 0; m < meshCutterEdges.Count; m++)
+                                // Pick the mesh with the most naked edges 
+                                int max = -99;
+                                var selectmesh=new Mesh();
+                                for (int k = 0; k < splitMeshC2.Length; k++)
                                 {
-                                    if (meshCutterEdges[0].Length == 1 &&
-                                        meshCutterEdges[0][0].ToNurbsCurve().Contains(splitMeshCentroid[k]))
-                                    {
-                                        
-                                    }
+                                    if (nakedEdgeCount.ToList()[k] <= max) continue;
+                                    max = nakedEdgeCount.ToList()[k];
+                                    selectmesh = splitMeshC2[k];
                                 }
-                                
+
+                                result.Append(new GH_Mesh(selectmesh), p1);
+                                areaResult.Append(new GH_Number(AreaMassProperties.Compute(selectmesh).Area),p1);
+                            }
+                            else if (nakedEdgeCount.Sum() == splitMeshC2.Length)
+                            {
+                                var cutterCentroid = AreaMassProperties.Compute(meshCutter).Centroid;
+                                var max = -9999.99;
+                                var selectmesh = new Mesh();
+                                foreach (Mesh t in splitMeshC2)
+                                {
+                                    var currentCentroidSplitmesh = AreaMassProperties.Compute(t).Centroid;
+                                    var currentDistanceCentroids = (cutterCentroid - currentCentroidSplitmesh).Length;
+                                    if (!(currentDistanceCentroids > max)) continue;
+                                    max = currentDistanceCentroids;
+                                    selectmesh = t;
+                                }
+                                result.Append(new GH_Mesh(selectmesh), p1);
+                                areaResult.Append(new GH_Number(AreaMassProperties.Compute(selectmesh).Area),p1);
                             }
 
-
-                            result.AppendRange(splitMeshC2.Select(p=>new  GH_Mesh(p)), p1);
-
-
-
-
-                            break;
+                                break;
                         case RegionContainment.AInsideB:
                             result.Append(new GH_Mesh(windowPanel), p1);
                             areaResult.Append(new GH_Number(windowArea), p1);
@@ -201,8 +215,8 @@ namespace SunTools.Component
             da.SetDataTree(0, result);
             da.SetDataTree(1, areaResult);
             da.SetDataTree(2, comment);
-            da.SetDataTree(3, MshCttr);
-            da.SetDataTree(4, hullCrv);
+            //da.SetDataTree(3, MshCttr);
+            //da.SetDataTree(4, hullCrv);
         }
 
         /// <summary>
