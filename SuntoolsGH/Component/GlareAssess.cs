@@ -123,12 +123,14 @@ namespace SunTools.Component
                     var currentProjSource = new Mesh();
                     currentProjSource.CopyFrom(source[i][j].Value);
                     currentProjSource.Transform(currentProjTrans);
+                    
 
                     // Define centroid of current projected source
                     var currentProjOutCentroid = AreaMassProperties.Compute(currentProjSource).Centroid;
                     var dsjtMeshCount = currentProjSource.DisjointMeshCount;
 
                     // Convex hull of the mesh vertices
+                    //if (!currentProjSource.IsValid) { }
                     var convexHullCurve = ConvexHullMesh(currentProjSource, panelPlane);
 
                     RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, convexHullCurve, panelPlane, tol);
@@ -160,16 +162,14 @@ namespace SunTools.Component
                                 minCentroidDistance = tempDistanceCentroid;
                                 resultMesh = tempmesh;
 
-                                if (resultMesh.DisjointMeshCount != dsjtMeshCount)
+                                if (resultMesh.DisjointMeshCount == dsjtMeshCount) continue;
+                                var dsjtCurrentProjSource = currentProjSource.SplitDisjointPieces();
+                                foreach (var dsjtmesh in dsjtCurrentProjSource)
                                 {
-                                    var dsjtCurrentProjSource = currentProjSource.SplitDisjointPieces();
-                                    foreach (var dsjtmesh in dsjtCurrentProjSource)
-                                    {
-                                        var tempHullCurve = ConvexHullMesh(dsjtmesh, panelPlane);
-                                        if (Curve.PlanarClosedCurveRelationship(panelOutline, tempHullCurve, panelPlane,
-                                                tol) == RegionContainment.BInsideA)
-                                            resultMesh.Append(dsjtmesh);
-                                    }
+                                    var tempHullCurve = ConvexHullMesh(dsjtmesh, panelPlane);
+                                    if (Curve.PlanarClosedCurveRelationship(panelOutline, tempHullCurve, panelPlane,
+                                            tol) == RegionContainment.BInsideA)
+                                        resultMesh.Append(dsjtmesh);
                                 }
                             }
 
@@ -300,18 +300,12 @@ See: http://stackoverflow.com/questions/2500499/howto-project-a-planar-p...
             var lstPts3D = new List<Point3d>();
             if (vrtxArray[0].Length == 2)
             {
-                foreach (double[] t in vrtxArray)
-                {
-                    lstPts3D.Add(new Point3d(t[0], t[1], 0));
-                }
+                lstPts3D.AddRange(vrtxArray.Select(t => new Point3d(t[0], t[1], 0)));
                 return lstPts3D;
             }
             else
             {
-                foreach (double[] t in vrtxArray)
-                {
-                    lstPts3D.Add(new Point3d(t[0], t[1], t[2]));
-                }
+                lstPts3D.AddRange(vrtxArray.Select(t => new Point3d(t[0], t[1], t[2])));
                 return lstPts3D;
             }
         }

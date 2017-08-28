@@ -43,8 +43,8 @@ namespace SunTools.Component
             pManager.AddNumberParameter("Area of exposed", "ExposedArea", "Area of the exposed part of the window panel", GH_ParamAccess.tree);
             pManager.AddTextParameter("Comment on operation type", "outCom",
                 "", GH_ParamAccess.tree);
-            //pManager.AddMeshParameter("debug meshcutter", "meshcutter", "", GH_ParamAccess.tree);
-            //pManager.AddCurveParameter("debug hull", "hullCrv", "", GH_ParamAccess.tree);
+            pManager.AddMeshParameter("debug meshcutter", "meshcutter", "", GH_ParamAccess.tree);
+            pManager.AddCurveParameter("debug hull", "hullCrv", "", GH_ParamAccess.tree);
 
         }
 
@@ -95,8 +95,8 @@ namespace SunTools.Component
             wNV.Unitize();
 
             //// Debug var
-            //var MshCttr = new GH_Structure<GH_Mesh>();
-            //var hullCrv = new GH_Structure<GH_Curve>();
+            var MshCttr = new GH_Structure<GH_Mesh>();
+            var hullCrv = new GH_Structure<GH_Curve>();
 
             for (int i = 0; i < shadeModule.Count; i++)
             {
@@ -131,12 +131,12 @@ namespace SunTools.Component
                         meshCutterLst.AddRange(Mesh.CreateFromBrep(tempCutterBrep.ToList()[k], MeshingParameters.Coarse));
                     }
                     var meshCutter = meshCutterLst.ToArray();
-                    //MshCttr.AppendRange(meshCutter.Select(p=>new GH_Mesh(p)), p1);
+                    MshCttr.AppendRange(meshCutter.Select(p=>new GH_Mesh(p)), p1);
                     
 
                     // Convex hull of the projected mesh's vertices
                     var convexHullCurve = ConvexHullMesh(currentShadeProj, windowPlane);
-                    //hullCrv.Append(new GH_Curve(convexHullCurve), p1);
+                    hullCrv.Append(new GH_Curve(convexHullCurve), p1);
 
                     // Determine the difference of the panel outline - the shade outline
                     RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, convexHullCurve, windowPlane, tol);
@@ -168,7 +168,10 @@ namespace SunTools.Component
                                     max = nakedEdgeCount.ToList()[k];
                                     selectmesh = tempResult[k];
                                 }
-
+                                //if (!selectmesh.IsValid)
+                                //{
+                                //    throw new NullReferenceException("The projected mesh is invalid, case MutualIntersection, shade number: "+i.ToString()+" ,Sun vector number: "+j.ToString());
+                                //}
                                 result.Append(new GH_Mesh(selectmesh), p1);
                                 areaResult.Append(new GH_Number(AreaMassProperties.Compute(selectmesh).Area),p1);
                             }
@@ -185,10 +188,16 @@ namespace SunTools.Component
                                     max = currentDistanceCentroids;
                                     selectmesh = t;
                                 }
+                                //if (!selectmesh.IsValid)
+                                //{
+                                //   throw new NullReferenceException(
+                                //        "The projected mesh is invalid, case MutualIntersection, shade number: " +
+                                //        i.ToString() + " ,Sun vector number: " + j.ToString());
+                                //}
                                 result.Append(new GH_Mesh(selectmesh), p1);
                                 areaResult.Append(new GH_Number(AreaMassProperties.Compute(selectmesh).Area),p1);
                             }
-
+                           
                                 break;
                         case RegionContainment.AInsideB:
                             result.Append(new GH_Mesh(windowPanel), p1);
@@ -215,8 +224,8 @@ namespace SunTools.Component
             da.SetDataTree(0, result);
             da.SetDataTree(1, areaResult);
             da.SetDataTree(2, comment);
-            //da.SetDataTree(3, MshCttr);
-            //da.SetDataTree(4, hullCrv);
+            da.SetDataTree(3, MshCttr);
+            da.SetDataTree(4, hullCrv);
         }
 
         /// <summary>

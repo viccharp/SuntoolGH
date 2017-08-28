@@ -83,14 +83,14 @@ namespace SunTools.Component
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // Declare input variables 
-            List<double> sunhours = new List<double>();
-            double startPeriod=new double();
-            double endPeriod = new double();
+            var sunhours = new List<double>();
+            var startPeriod=new double();
+            var endPeriod = new double();
             string winterCoef = null;
             string summerCoef = null;
 
             // Declare output variables
-            GH_Structure<GH_String> SCoefs = new GH_Structure<GH_String>();
+            var sCoefs = new GH_Structure<GH_String>();
 
             // Populating the list input variables
             if (!DA.GetDataList(0,  sunhours)) { return; }
@@ -99,30 +99,27 @@ namespace SunTools.Component
             if (!DA.GetData(3, ref winterCoef)) { return; }
             if (!DA.GetData(4, ref summerCoef)) { return; }
 
-            // Declare temp variables
-            var nshour = new int();
-
-            // Start
-            nshour = sunhours.Count;
+            // Declare  variables
+            var nshour = sunhours.Count;
 
             for (int i = 0; i < nshour; i++)
             {
-                double current_hour = sunhours[i];
-                if (current_hour > startPeriod) 
+                var currentHour = sunhours[i];
+                if (currentHour > startPeriod) 
                 {
-                    SCoefs.Append(new GH_String(winterCoef));
+                    sCoefs.Append(new GH_String(winterCoef));
                 }
-                else if (current_hour < endPeriod)
+                else if (currentHour < endPeriod)
                 {
-                    SCoefs.Append(new GH_String(winterCoef));
+                    sCoefs.Append(new GH_String(winterCoef));
                 }
                 else
                 {
-                    SCoefs.Append(new GH_String(summerCoef));
+                    sCoefs.Append(new GH_String(summerCoef));
                 }
             }
 
-            DA.SetDataTree(0,  SCoefs);
+            DA.SetDataTree(0,  sCoefs);
 
         }
 
