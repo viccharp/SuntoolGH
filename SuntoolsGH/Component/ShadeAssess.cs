@@ -1,9 +1,12 @@
 ﻿using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
+using MIConvexHull;
 using Rhino.Geometry;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Windows.Forms.VisualStyles;
 
 namespace SunTools.Component
 {
@@ -13,8 +16,8 @@ namespace SunTools.Component
         /// Initializes a new instance of the MyComponent1 class.
         /// </summary>
         public ShadeAssess()
-            : base("Shade on façade panel", "ShadeAssess",
-                "Projection of Shading surface on ",
+            : base("Shade Assessment", "ShadeAssess",
+                "Shading modules geometric performance (direct lighting) by projection of shade on window ",
                 "SunTools", "Shading")
         {
         }
@@ -24,9 +27,9 @@ namespace SunTools.Component
         /// </summary>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddMeshParameter("Façade Panel", "mfpanel", "A planar mesh representing a panel of a façade", GH_ParamAccess.item);
-            pManager.AddMeshParameter("Shade surface", "mshade", "A list of shade meshes to be evaluated for direct shade coverage", GH_ParamAccess.list);
-            pManager.AddVectorParameter("Projection direction vector", "dir", "The vectors for shading evaluation", GH_ParamAccess.list);
+            pManager.AddMeshParameter("window Panel Mesh", "mfpanel", "A planar mesh representing a panel of a window", GH_ParamAccess.item);
+            pManager.AddMeshParameter("Shade Module Mesh", "mshade", "A list of shade meshes to be evaluated for direct shade coverage", GH_ParamAccess.list);
+            pManager.AddVectorParameter("Projection Vector", "dir", "The vectors for shading evaluation (sun vectors)", GH_ParamAccess.list);
             pManager.AddBooleanParameter("Launch the analysis", "start", "If bool is True: analysis is running, if bool is False: analysis stopped", GH_ParamAccess.item);
 
         }
@@ -36,10 +39,12 @@ namespace SunTools.Component
         /// </summary>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddCurveParameter("Outline of shade", "Outline_exposed", "Tree of shade oultine on the façade panel", GH_ParamAccess.tree);
-            pManager.AddNumberParameter("Area of exposed", "Area_exposed", "Area of the exposed part of the façade panel", GH_ParamAccess.tree);
+            pManager.AddMeshParameter("Mesh of exposed windows surface", "ExposedMesh", "Tree of exposed window surface mesh on the window panel", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Area of exposed", "ExposedArea", "Area of the exposed part of the window panel", GH_ParamAccess.tree);
             pManager.AddTextParameter("Comment on operation type", "outCom",
-                "type of difference between the two curves: Disjoint, MutualIntersection(and number of resulting disjoint closed curves), AinsideB, BinsideA", GH_ParamAccess.tree);
+                "", GH_ParamAccess.tree);
+            pManager.AddMeshParameter("debug meshcutter", "meshcutter", "", GH_ParamAccess.tree);
+            pManager.AddCurveParameter("debug hull", "hullCrv", "", GH_ParamAccess.tree);
 
         }
 
@@ -50,145 +55,177 @@ namespace SunTools.Component
         protected override void SolveInstance(IGH_DataAccess da)
         {
             // input variables
-            var panel = new Mesh();
-            var mshade = new List<Mesh>();
-            var vsun = new List<Vector3d>();
+            var windowPanel = new Mesh();
+            var shadeModule = new List<Mesh>();
+            var sunVector = new List<Vector3d>();
             var run = new bool();
 
-            da.GetData(0, ref panel);
-            da.GetDataList(1, mshade);
-            da.GetDataList(2, vsun);
+            da.GetData(0, ref windowPanel);
+            da.GetDataList(1, shadeModule);
+            da.GetDataList(2, sunVector);
             da.GetData(3, ref run);
+
+            const double tol = 0.0001;
 
             if (run == false) { return; }
 
-
-
-            //output variables
-            var shadeOutline = new GH_Structure<GH_Curve>();
-            var shadeAreas = new GH_Structure<GH_Number>();
-
-            //temporary output variables
-            var res = new GH_Structure<GH_Curve>();
-            var ares = new GH_Structure<GH_Number>();
+            // output variables
+            var result = new GH_Structure<GH_Mesh>();
+            var areaResult = new GH_Structure<GH_Number>();
             var comment = new GH_Structure<GH_String>();
 
-
-            var panelOutlineList = new List<Polyline>(panel.GetNakedEdges());
+            // Define window outline as a nurbscurve
+            if (!windowPanel.IsValid) { return; }
+            var panelOutlineList = new List<Polyline>(windowPanel.GetNakedEdges());
             if (panelOutlineList.Count > 1) { return; }
-
-            // Define panel outline as a nurbscurve 
             var panelOutline = new Polyline(panelOutlineList[0]).ToNurbsCurve();
 
-            var panelPlane = new Plane();
-            Plane.FitPlaneToPoints(panelOutlineList[0], out panelPlane);
+            // Define window panel plane
+            var windowPlane = new Plane();
+            Plane.FitPlaneToPoints(panelOutlineList[0], out windowPlane);
 
-            
-            double tol = 0.001;
+            // Surface area and centroid of window panel
+            var propWindowPanel = AreaMassProperties.Compute(panelOutline);
+            var windowArea= propWindowPanel.Area;
+            var centroidWindowPanel = propWindowPanel.Centroid;
 
-            
-            // Surface Area of window panel
-            var winArea= AreaMassProperties.Compute(panelOutline).Area;
+            // Define normal of window panel
+            windowPanel.Normals.ComputeNormals();
+            var wNV = windowPanel.Normals[0];
+            wNV.Unitize();
 
+            //// Debug var
+            var MshCttr = new GH_Structure<GH_Mesh>();
+            var hullCrv = new GH_Structure<GH_Curve>();
 
-            for (int i = 0; i < mshade.Count; i++)
+            for (int i = 0; i < shadeModule.Count; i++)
             {
-                Mesh currentShade = mshade[i];
-                var currentShadeOutline = new Polyline((new List<Polyline>(currentShade.GetNakedEdges()))[0]);
+                // Define Shade path for output
                 var p1 = new GH_Path(i);
-                
-                for (int j = 0; j < vsun.Count; j++)
+
+                for (int j = 0; j < sunVector.Count; j++)
                 {
                     // Create projection transform of shade to panel plane along the sun vector direction
-                    var projectToPp = new Transform();
-                    projectToPp = GetObliqueTransformation(panelPlane, vsun[j]);
+                    var projectToWindowPanel = new Transform();
+                    projectToWindowPanel = GetObliqueTransformation(windowPlane, sunVector[j]);
+
+                    // Project shade outline to panel plane along the sun vector direction
+                    var currentShadeProj = new Mesh();
+                    currentShadeProj.CopyFrom(shadeModule[i]);
+                    currentShadeProj.Transform(projectToWindowPanel);
+
+                    // Create currentShadeProj Outline
+                    var currentShadeProjOutline = currentShadeProj.GetNakedEdges();
+
+                    // Define cutter for mesh
+                    var tempCutter = new List<Surface>();
+                    foreach (Polyline t in currentShadeProjOutline)
+                    {
+                        tempCutter.Add(Surface.CreateExtrusion(t.ToNurbsCurve(), Vector3d.Multiply(new Vector3d(wNV), 1.0)));
+                    }
+                    foreach (var mshcuttemp in tempCutter) { mshcuttemp.Translate(Vector3d.Multiply(new Vector3d(wNV), -0.5)); }
+                    var tempCutterBrep = tempCutter.Select(p => p.ToBrep());
+                    var meshCutterLst = new List<Mesh>();
+                    for (int k = 0; k < tempCutterBrep.ToList().Count; k++)
+                    {
+                        meshCutterLst.AddRange(Mesh.CreateFromBrep(tempCutterBrep.ToList()[k], MeshingParameters.Coarse));
+                    }
+                    var meshCutter = meshCutterLst.ToArray();
+                    MshCttr.AppendRange(meshCutter.Select(p=>new GH_Mesh(p)), p1);
                     
-                    // Project shade outline to panel plane along the sun vector direction 
-                    var currentShadeSunProj = new Polyline(currentShadeOutline).ToNurbsCurve();
-                    currentShadeSunProj.Transform(projectToPp);
+
+                    // Convex hull of the projected mesh's vertices
+                    var convexHullCurve = ConvexHullMesh(currentShadeProj, windowPlane);
+                    hullCrv.Append(new GH_Curve(convexHullCurve), p1);
 
                     // Determine the difference of the panel outline - the shade outline
-                    RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, currentShadeSunProj, panelPlane, tol);
+                    RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, convexHullCurve, windowPlane, tol);
 
                     switch (status)
                     {
                         case RegionContainment.Disjoint:
-                            res.Append(new GH_Curve(panelOutline), p1);
-                            ares.Append(new GH_Number(winArea), p1);
+                            result.Append(new GH_Mesh(windowPanel), p1);
+                            areaResult.Append(new GH_Number(windowArea), p1);
                             comment.Append(new GH_String("Disjoint, case 1"),p1);
                             break;
                         case RegionContainment.MutualIntersection:
-                            Curve[] currentDifference =Curve.CreateBooleanDifference(panelOutline, currentShadeSunProj);
-                            if (currentDifference == null) throw new ArgumentNullException(nameof(currentDifference));
-                            // test needed to determine if there is one or more distinct resulting curves
+                            comment.Append(new GH_String("MutualIntersection, intersection of projected source and wall"), p1);
 
-                            if (currentDifference.Length == 0)
-                            {
-                                var areaInter = AreaMassProperties.Compute(Curve.CreateBooleanIntersection(panelOutline, currentShadeSunProj)).Area;
-                                if (areaInter < tol * AreaMassProperties.Compute(panelOutline).Area)
-                                {
-                                    res.Append(new GH_Curve(panelOutline), p1);
-                                    ares.Append(new GH_Number(winArea), p1);
-                                    comment.Append(new GH_String("MutualIntersection, line/point intersection, case 2a_a"), p1);
-                                }
-                                else
-                                {
-                                    res.Append(new GH_Curve(currentShadeSunProj), p1);
-                                    res.Append(new GH_Curve(panelOutline), p1);
-                                    ares.Append(new GH_Number(winArea - AreaMassProperties.Compute(currentShadeSunProj).Area), p1);
-                                    comment.Append(new GH_String("MutualIntersection, line/point intersection, case 2a_b"), p1);
-                                }
-                                
-                            }
+                            var splitMeshC2 = windowPanel.Split(meshCutter);
+                            var tempResult = new Mesh[splitMeshC2.Length];
+                            splitMeshC2.CopyTo(tempResult,0);
+                            var nakedEdgeCount = tempResult.Select(p => p.GetNakedEdges().Length);
+                            //var sumNkdEdge = nakedEdgeCount.Sum();
 
-                            else if (currentDifference.Length == 1)
+                            if (nakedEdgeCount.Sum() > tempResult.Length)
                             {
-                                currentDifference[0].Transform(projectToPp);
-                                res.Append(new GH_Curve(currentDifference[0]),p1);
-                                ares.Append(new GH_Number(AreaMassProperties.Compute(currentDifference[0]).Area), p1);
-                                comment.Append(new GH_String("MutualIntersection, 1 resulting closed curve, case 2b"), p1);
-                            }
-                            else
-                            {
-                                for (int k = 0; k < currentDifference.Length; k++)
+                                // Pick the mesh with the most naked edges 
+                                int max = -99;
+                                var selectmesh=new Mesh();
+                                for (int k = 0; k < tempResult.Length; k++)
                                 {
-                                    res.Append(new GH_Curve(currentDifference[k]), p1);
+                                    if (nakedEdgeCount.ToList()[k] <= max) continue;
+                                    max = nakedEdgeCount.ToList()[k];
+                                    selectmesh = tempResult[k];
                                 }
-                                ares.Append(new GH_Number(AreaMassProperties.Compute(currentDifference).Area), p1);
-                                comment.Append(new GH_String("MutualIntersection, " + currentDifference.Length.ToString() + " resulting closed curves, case 2c"), p1);
+                                //if (!selectmesh.IsValid)
+                                //{
+                                //    throw new NullReferenceException("The projected mesh is invalid, case MutualIntersection, shade number: "+i.ToString()+" ,Sun vector number: "+j.ToString());
+                                //}
+                                result.Append(new GH_Mesh(selectmesh), p1);
+                                areaResult.Append(new GH_Number(AreaMassProperties.Compute(selectmesh).Area),p1);
                             }
-                            break;
+                            else if (nakedEdgeCount.Sum() == tempResult.Length)
+                            {
+                                var cutterCentroid = AreaMassProperties.Compute(meshCutter).Centroid;
+                                var max = -9999.99;
+                                var selectmesh = new Mesh();
+                                foreach (Mesh t in tempResult)
+                                {
+                                    var currentCentroidSplitmesh = AreaMassProperties.Compute(t).Centroid;
+                                    var currentDistanceCentroids = (cutterCentroid - currentCentroidSplitmesh).Length;
+                                    if (!(currentDistanceCentroids > max)) continue;
+                                    max = currentDistanceCentroids;
+                                    selectmesh = t;
+                                }
+                                //if (!selectmesh.IsValid)
+                                //{
+                                //   throw new NullReferenceException(
+                                //        "The projected mesh is invalid, case MutualIntersection, shade number: " +
+                                //        i.ToString() + " ,Sun vector number: " + j.ToString());
+                                //}
+                                result.Append(new GH_Mesh(selectmesh), p1);
+                                areaResult.Append(new GH_Number(AreaMassProperties.Compute(selectmesh).Area),p1);
+                            }
+                           
+                                break;
                         case RegionContainment.AInsideB:
-                            if (panelOutline.IsClosed)
-                            {
-                                res.Append(new GH_Curve(panelOutline), p1); 
-                                ares.Append(new GH_Number(winArea), p1);
-                                comment.Append(new GH_String("A Inside B, resulting curve is closed, case 3a"),p1);
-                            }
-                            else
-                            {
-                                res.Append(new GH_Curve(panelOutline), p1);
-                                ares.Append(null, p1);
-                                comment.Append(new GH_String("A Inside B,  resulting curve is NOT closed, case 3b"),p1);
-                            }
+                            result.Append(new GH_Mesh(windowPanel), p1);
+                            areaResult.Append(new GH_Number(windowArea), p1);
+                            comment.Append(new GH_String("A Inside B, the window is inside the convex hull of the projected shade module, case 3a"), p1);
                             break;
                         case RegionContainment.BInsideA:
-                            res.Append(new GH_Curve(currentShadeSunProj), p1);
-                            res.Append(new GH_Curve(panelOutline), p1);
-                            ares.Append(new GH_Number(winArea - AreaMassProperties.Compute(currentShadeSunProj).Area), p1);
-                            comment.Append(new GH_String("B Inside A,  resulting curve is  closed, case 4"),p1);
+                            var splitMeshC4 = windowPanel.Split(meshCutter); ;
+                            var finalRes = new Mesh();
+                            foreach (var msh in splitMeshC4)
+                            {
+                                foreach (var edge in msh.GetNakedEdges())
+                                    //if (Curve.PlanarClosedCurveRelationship(edge.ToNurbsCurve(), panelOutline, windowPlane, tol)== RegionContainment.MutualIntersection) { finalRes = msh; }
+                                    if (Rhino.Geometry.Intersect.Intersection.CurveCurve(edge.ToNurbsCurve(),panelOutline,tol,0.0) != null) { finalRes = msh; }
+                            }
+                            result.Append(new GH_Mesh(finalRes), p1);
+                            areaResult.Append(new GH_Number(AreaMassProperties.Compute(finalRes).Area), p1);
+                            comment.Append(new GH_String("B Inside A,  the shade module projection is inside the window, case 4, sun vector ID: "+j.ToString()+" sun vector: "+sunVector[j].ToString()+"transformation: "+ projectToWindowPanel.ToString()), p1);
                             break;
                     }
                 }
             }
 
-            shadeOutline = res;
-            shadeAreas = ares;
-
-            da.SetDataTree(0, shadeOutline);
-            da.SetDataTree(1, shadeAreas);
+            da.SetDataTree(0, result);
+            da.SetDataTree(1, areaResult);
             da.SetDataTree(2, comment);
-
+            da.SetDataTree(3, MshCttr);
+            da.SetDataTree(4, hullCrv);
         }
 
         /// <summary>
@@ -246,6 +283,70 @@ namespace SunTools.Component
         }
 
 
+        public NurbsCurve ConvexHullMesh(Mesh msh, Plane pl)
+        {
+
+            var worldPlane = new Plane(new Point3d(0.0, 0.0, 0.0), new Vector3d(0.0, 0.0, 1.0));
+            var BC = Transform.ChangeBasis(worldPlane, pl);
+            var BCB = Transform.ChangeBasis(pl, worldPlane);
+            var tempMsh = new Mesh();
+            tempMsh.CopyFrom(msh);
+
+            tempMsh.Transform(BC);
+            var vertices = new Vertex2D[tempMsh.Vertices.Count];
+            var mshPts = tempMsh.Vertices.ToPoint3dArray();
+            for (int i = 0; i < tempMsh.Vertices.Count; i++) vertices[i] = new Vertex2D(mshPts[i].X, mshPts[i].Y);
+
+            var convexHull = ConvexHull.Create<Vertex2D>(vertices);
+            var hullPts = DoubleArraytoPts3DList(convexHull.Points.Select(p => p.Position).ToArray());
+
+            var hullPtsWorld = new Point3d[hullPts.Count];
+            hullPts.CopyTo(hullPtsWorld);
+            for (int i = 0; i < hullPts.Count; i++) hullPtsWorld[i].Transform(BCB);
+
+            var hullCurve = new Polyline(hullPtsWorld);
+            if (!hullCurve.IsClosed) { hullCurve.Add(hullCurve[0]); }
+
+            return hullCurve.ToNurbsCurve();
+        }
+
+        public List<Point3d> DoubleArraytoPts3DList(Double[][] vrtxArray)
+        {
+            var LstPts3D = new List<Point3d>();
+            if (vrtxArray[0].Length == 2)
+            {
+                for (int i = 0; i < vrtxArray.Length; i++)
+                {
+                    LstPts3D.Add(new Point3d(vrtxArray[i][0], vrtxArray[i][1], 0));
+                }
+                return LstPts3D;
+            }
+            else
+            {
+                for (int i = 0; i < vrtxArray.Length; i++)
+                {
+                    LstPts3D.Add(new Point3d(vrtxArray[i][0], vrtxArray[i][1], vrtxArray[i][2]));
+                }
+                return LstPts3D;
+            }
+        }
+
+        public static T[] RemoveAt<T>(int index)
+        {
+            return RemoveAtt<T>(new T[] { }, index);
+        }
+
+        public static T[] RemoveAtt<T>( T[] source, int index)
+        {
+            T[] dest = new T[source.Length - 1];
+            if (index > 0)
+                Array.Copy(source, 0, dest, 0, index);
+
+            if (index < source.Length - 1)
+                Array.Copy(source, index + 1, dest, index, source.Length - index - 1);
+
+            return dest;
+        }
 
 
         /// <summary>

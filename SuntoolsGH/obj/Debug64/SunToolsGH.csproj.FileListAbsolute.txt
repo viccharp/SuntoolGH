@@ -1,8 +1,6 @@
 C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\bin\MyProject3.dll
 C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\bin\MyProject3.pdb
 C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\obj\Debug64\SunToolsGH.csprojResolveAssemblyReference.cache
-C:\Users\admin\AppData\Roaming\Grasshopper\Libraries\SunTools.dll
-C:\Users\admin\AppData\Roaming\Grasshopper\Libraries\SunTools.pdb
 C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\obj\Debug64\SunTools.dll
 C:\Users\admin\Documents\Visual Studio 2015\Projects\MyProject3\MyProject3\obj\Debug64\SunTools.pdb
 C:\Users\admin\Google Drive\PhD\09-Main\energy_study\suntools\MyProject3\MyProject3\obj\Debug64\SunToolsGH.csprojResolveAssemblyReference.cache
@@ -15,11 +13,12 @@ C:\Users\victor\Google Drive\PhD\09-Main\energy_study\suntools\MyProject3 (1)\My
 C:\Users\victor\Google Drive\PhD\09-Main\energy_study\suntools\MyProject3 (1)\MyProject3\obj\Debug64\SunTools.pdb
 C:\AppData\Roaming\Grasshopper\Libraries\SunTools.dll
 C:\AppData\Roaming\Grasshopper\Libraries\SunTools.pdb
+C:\Users\admin\AppData\Roaming\Grasshopper\Libraries\SunTools.dll
+C:\Users\admin\AppData\Roaming\Grasshopper\Libraries\SunTools.pdb
+C:\Users\admin\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.dll
+C:\Users\admin\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.pdb
 C:\Users\victor\AppData\Roaming\Grasshopper\Libraries\SunTools.dll
 C:\Users\victor\AppData\Roaming\Grasshopper\Libraries\SunTools.pdb
 C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.dll
 C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.pdb
 C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunToolsGH.csprojResolveAssemblyReference.cache
-C:\Users\admin\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunToolsGH.csprojResolveAssemblyReference.cache
-C:\Users\admin\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.dll
-C:\Users\admin\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.pdb

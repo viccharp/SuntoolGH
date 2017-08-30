@@ -7,6 +7,7 @@ using Rhino.Geometry;
 using Rhino;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
+using Grasshopper.Kernel.Parameters;
 
 namespace SunTools.Component
 {
@@ -31,8 +32,14 @@ namespace SunTools.Component
             pManager.AddNumberParameter("sun azimuth", "sazi","List of sun azimuth angles - north 0° - east 90° - south 180° - west 270°",GH_ParamAccess.list);
             pManager.AddNumberParameter("sun altitude", "salt", "List of sun altitude angles - horizontal 0° - Vertical 90°", GH_ParamAccess.list);
             pManager.AddNumberParameter("associated sun hours", "shours", "List of hours between 0 and 8752(=24*365) associated with a sun orientation", GH_ParamAccess.list);
-            pManager.AddMeshParameter("Façade panel to evaluate", "pmesh", "List of façade panels subject of sun radiation assessment", GH_ParamAccess.list);
-            
+            pManager.AddMeshParameter("window panel to evaluate", "pmesh", "List of window panels subject of sun radiation assessment", GH_ParamAccess.list);
+            pManager.AddNumberParameter("angle tolerance in Rad", "angleTol", "angle tolerance for sun.window dot product in radians, too small a tolerance will create invalid cases, the default is 5 degrees in radians", GH_ParamAccess.item);
+
+            // Assign initial values to angle tolerance
+            var param5 = (Param_Number)pManager[5];
+
+            param5.PersistentData.ClearData();
+            param5.PersistentData.Append(new GH_Number(5.00*Math.PI/180));
         }
 
         /// <summary>
@@ -59,6 +66,7 @@ namespace SunTools.Component
             var salt = new List<double>();
             var shours = new List<double>();
             var pmesh = new List<Mesh>();
+            var atol=new double();
 
             //Definition of output variable
             var siftazi = new GH_Structure<GH_Number>();
@@ -75,6 +83,8 @@ namespace SunTools.Component
             if (!DA.GetDataList(2, salt)) { return; }
             if (!DA.GetDataList(3, shours)) { return; }
             if (!DA.GetDataList(4, pmesh)) { return; }
+            if (!DA.GetData(5, ref atol)) { return; }
+
 
             // Evaluate if North == null
             if (north == null)
@@ -154,7 +164,7 @@ namespace SunTools.Component
                     var dsn = Vector3d.Multiply(current_normal, current_sun);
 
 
-                    if (dsn > 0)
+                    if (dsn > (0 + Math.Cos(Math.PI/2-atol)))
                     {
                         siftazi.Append(current_sazi,p1);
                         siftalt.Append(current_salt,p1);
@@ -162,21 +172,13 @@ namespace SunTools.Component
                         svector.Append(new GH_Vector(current_sun));
 
                     }
-
-
-
-
-                    
                 }
             }
-
-            
 
             DA.SetDataTree(0, siftazi);
             DA.SetDataTree(1, siftalt);
             DA.SetDataTree(2, sifthours);
             DA.SetDataTree(3, svector);
-
 
         }
 
