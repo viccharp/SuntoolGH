@@ -183,9 +183,9 @@ end
 
 %definition of coefficients for balancing functions.
 %temporarily, all coefficients are equal to one
-% c1=ones(ns,1);
-% c2=ones(ns,1);
-% c3=-ones(ns,1);
+c1=ones(ns,1);
+c2=ones(ns,1);
+c3=-ones(ns,1);
 c=SC;
 
 act_opt=zeros(ns,ndof);
@@ -200,6 +200,7 @@ A_bal = [];
 b_bal = [];
 Aeq_bal = [];
 beq_bal = [];
+
 
 for i=1:ns
     
