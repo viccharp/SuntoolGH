@@ -65,7 +65,7 @@ namespace SunTools.Component
             da.GetDataList(2, sunVector);
             da.GetData(3, ref run);
 
-            const double tol = 0.0001;
+            const double tol = 1e-8;
 
             if (run == false) { return; }
 
@@ -86,7 +86,7 @@ namespace SunTools.Component
 
             // Surface area and centroid of window panel
             var propWindowPanel = AreaMassProperties.Compute(panelOutline);
-            var windowArea= propWindowPanel.Area;
+            var windowArea = propWindowPanel.Area;
             var centroidWindowPanel = propWindowPanel.Centroid;
 
             // Define normal of window panel
@@ -131,8 +131,8 @@ namespace SunTools.Component
                         meshCutterLst.AddRange(Mesh.CreateFromBrep(tempCutterBrep.ToList()[k], MeshingParameters.Coarse));
                     }
                     var meshCutter = meshCutterLst.ToArray();
-                    MshCttr.AppendRange(meshCutter.Select(p=>new GH_Mesh(p)), p1);
-                    
+                    MshCttr.AppendRange(meshCutter.Select(p => new GH_Mesh(p)), p1);
+
 
                     // Convex hull of the projected mesh's vertices
                     var convexHullCurve = ConvexHullMesh(currentShadeProj, windowPlane);
@@ -146,14 +146,14 @@ namespace SunTools.Component
                         case RegionContainment.Disjoint:
                             result.Append(new GH_Mesh(windowPanel), p1);
                             areaResult.Append(new GH_Number(windowArea), p1);
-                            comment.Append(new GH_String("Disjoint, case 1"),p1);
+                            comment.Append(new GH_String("Disjoint, case 1"), p1);
                             break;
                         case RegionContainment.MutualIntersection:
-                            comment.Append(new GH_String("MutualIntersection, intersection of projected source and wall"), p1);
+
 
                             var splitMeshC2 = windowPanel.Split(meshCutter);
                             var tempResult = new Mesh[splitMeshC2.Length];
-                            splitMeshC2.CopyTo(tempResult,0);
+                            splitMeshC2.CopyTo(tempResult, 0);
                             var nakedEdgeCount = tempResult.Select(p => p.GetNakedEdges().Length);
                             //var sumNkdEdge = nakedEdgeCount.Sum();
 
@@ -161,7 +161,7 @@ namespace SunTools.Component
                             {
                                 // Pick the mesh with the most naked edges 
                                 int max = -99;
-                                var selectmesh=new Mesh();
+                                var selectmesh = new Mesh();
                                 for (int k = 0; k < tempResult.Length; k++)
                                 {
                                     if (nakedEdgeCount.ToList()[k] <= max) continue;
@@ -173,7 +173,8 @@ namespace SunTools.Component
                                 //    throw new NullReferenceException("The projected mesh is invalid, case MutualIntersection, shade number: "+i.ToString()+" ,Sun vector number: "+j.ToString());
                                 //}
                                 result.Append(new GH_Mesh(selectmesh), p1);
-                                areaResult.Append(new GH_Number(AreaMassProperties.Compute(selectmesh).Area),p1);
+                                areaResult.Append(new GH_Number(AreaMassProperties.Compute(selectmesh).Area), p1);
+                                comment.Append(new GH_String("MutualIntersection, intersection of projected source and wall, multi-module"), p1);
                             }
                             else if (nakedEdgeCount.Sum() == tempResult.Length)
                             {
@@ -188,6 +189,7 @@ namespace SunTools.Component
                                     max = currentDistanceCentroids;
                                     selectmesh = t;
                                 }
+                                var test = selectmesh.IsValid;
                                 //if (!selectmesh.IsValid)
                                 //{
                                 //   throw new NullReferenceException(
@@ -195,13 +197,14 @@ namespace SunTools.Component
                                 //        i.ToString() + " ,Sun vector number: " + j.ToString());
                                 //}
                                 result.Append(new GH_Mesh(selectmesh), p1);
-                                areaResult.Append(new GH_Number(AreaMassProperties.Compute(selectmesh).Area),p1);
+                                areaResult.Append(new GH_Number(AreaMassProperties.Compute(selectmesh).Area), p1);
+                                comment.Append(new GH_String("MutualIntersection, intersection of projected source and wall, single module"), p1);
                             }
-                           
-                                break;
+
+                            break;
                         case RegionContainment.AInsideB:
-                            result.Append(new GH_Mesh(windowPanel), p1);
-                            areaResult.Append(new GH_Number(windowArea), p1);
+                            result.Append(new GH_Mesh(new Mesh()), p1);
+                            areaResult.Append(new GH_Number(0.00), p1);
                             comment.Append(new GH_String("A Inside B, the window is inside the convex hull of the projected shade module, case 3a"), p1);
                             break;
                         case RegionContainment.BInsideA:
@@ -211,11 +214,11 @@ namespace SunTools.Component
                             {
                                 foreach (var edge in msh.GetNakedEdges())
                                     //if (Curve.PlanarClosedCurveRelationship(edge.ToNurbsCurve(), panelOutline, windowPlane, tol)== RegionContainment.MutualIntersection) { finalRes = msh; }
-                                    if (Rhino.Geometry.Intersect.Intersection.CurveCurve(edge.ToNurbsCurve(),panelOutline,tol,0.0) != null) { finalRes = msh; }
+                                    if (Rhino.Geometry.Intersect.Intersection.CurveCurve(edge.ToNurbsCurve(), panelOutline, tol, 0.0) != null) { finalRes = msh; }
                             }
                             result.Append(new GH_Mesh(finalRes), p1);
                             areaResult.Append(new GH_Number(AreaMassProperties.Compute(finalRes).Area), p1);
-                            comment.Append(new GH_String("B Inside A,  the shade module projection is inside the window, case 4, sun vector ID: "+j.ToString()+" sun vector: "+sunVector[j].ToString()+"transformation: "+ projectToWindowPanel.ToString()), p1);
+                            comment.Append(new GH_String("B Inside A,  the shade module projection is inside the window, case 4, sun vector ID: " + j.ToString() + " sun vector: " + sunVector[j].ToString() + "transformation: " + projectToWindowPanel.ToString()), p1);
                             break;
                     }
                 }
@@ -336,7 +339,7 @@ namespace SunTools.Component
             return RemoveAtt<T>(new T[] { }, index);
         }
 
-        public static T[] RemoveAtt<T>( T[] source, int index)
+        public static T[] RemoveAtt<T>(T[] source, int index)
         {
             T[] dest = new T[source.Length - 1];
             if (index > 0)

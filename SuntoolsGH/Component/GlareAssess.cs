@@ -103,7 +103,7 @@ namespace SunTools.Component
             var meshCutter = Mesh.CreateFromBrep(tempCutter.ToBrep(), MeshingParameters.Smooth);
 
             // Define Wall plane
-            Plane panelPlane= new Plane();
+            Plane panelPlane = new Plane();
             Plane.FitPlaneToPoints(panelOutlineList[0], out panelPlane);
 
 
@@ -111,7 +111,7 @@ namespace SunTools.Component
             {
                 // Define source Path for output
                 var areaPath = new GH_Path(i);
-                
+
                 if (source[i].Count != sunVector.Count) return;
 
                 for (int j = 0; j < sunVector.Count; j++)
@@ -122,88 +122,110 @@ namespace SunTools.Component
                     // Define projected source mesh
                     var currentProjSource = new Mesh();
                     currentProjSource.CopyFrom(source[i][j].Value);
-                    currentProjSource.Transform(currentProjTrans);
-                    
-
-                    // Define centroid of current projected source
-                    var currentProjOutCentroid = AreaMassProperties.Compute(currentProjSource).Centroid;
-                    var dsjtMeshCount = currentProjSource.DisjointMeshCount;
-
-                    // Convex hull of the mesh vertices
-                    //if (!currentProjSource.IsValid) { }
-                    var convexHullCurve = ConvexHullMesh(currentProjSource, panelPlane);
-
-                    RegionContainment status = Curve.PlanarClosedCurveRelationship(panelOutline, convexHullCurve, panelPlane, tol);
-
-                    switch (status)
+                    if (!currentProjSource.IsValid)
                     {
-                        case RegionContainment.Disjoint:
-                            comment.Append(new GH_String("Disjoint"), areaPath);
-                            GlareMesh.Append(null, areaPath);
-                            glareAreas.Append(new GH_Number(0.00), areaPath);
-
-                            break;
-
-                        case RegionContainment.MutualIntersection:
-
-
-                            var splitMesh = currentProjSource.Split(meshCutter[0]);
-                            //MshCttr.AppendRange(splitMesh.Select(p => new GH_Mesh(p)), areaPath);
-                            MshCttr.Append(new GH_Mesh(currentProjSource),areaPath);
-                            var minCentroidDistance = 9999.0;
-                            var resultMesh = new Mesh();
-                            for (var index = 0; index < splitMesh.Length; index++)
-                            {
-                                var tempmesh = splitMesh[index];
-                                var centroidTempMesh = AreaMassProperties.Compute(tempmesh).Centroid;
-
-                                var tempDistanceCentroid = (centroidWallPanel - centroidTempMesh).Length;
-                                if (!(tempDistanceCentroid < minCentroidDistance)) continue;
-                                minCentroidDistance = tempDistanceCentroid;
-                                resultMesh = tempmesh;
-
-                                if (resultMesh.DisjointMeshCount == dsjtMeshCount) continue;
-                                var dsjtCurrentProjSource = currentProjSource.SplitDisjointPieces();
-                                foreach (var dsjtmesh in dsjtCurrentProjSource)
-                                {
-                                    var tempHullCurve = ConvexHullMesh(dsjtmesh, panelPlane);
-                                    if (Curve.PlanarClosedCurveRelationship(panelOutline, tempHullCurve, panelPlane,
-                                            tol) == RegionContainment.BInsideA)
-                                        resultMesh.Append(dsjtmesh);
-                                }
-                            }
-
-                            var areaResultMesh = AreaMassProperties.Compute(resultMesh).Area;
-                            comment.Append(
-                                new GH_String(
-                                    "MutualIntersection, intersection of projected source and wall, tempMesh case, " +
-                                    panelOutline.Contains(AreaMassProperties.Compute(resultMesh).Centroid)+ " , length of splitMesh "+splitMesh.Length.ToString()),
-                                areaPath);
-                            if (panelOutline.Contains(AreaMassProperties.Compute(resultMesh).Centroid) ==
-                                PointContainment.Outside)
-                            {
-                                resultMesh = null;
-                                areaResultMesh = 0;
-                            }
-                            GlareMesh.Append(new GH_Mesh(resultMesh), areaPath);
-                            glareAreas.Append(new GH_Number(areaResultMesh), areaPath);
-                            break;
-
-                        case RegionContainment.AInsideB:
-                            comment.Append(new GH_String("AInsideB, wall inside convexhull of projected source"), areaPath);
-                            GlareMesh.Append(new GH_Mesh(wallPanel), areaPath);
-                            glareAreas.Append(new GH_Number(areaWallPanel), areaPath);
-
-                            break;
-
-                        case RegionContainment.BInsideA:
-                            comment.Append(new GH_String("BInsideA, projected source wholly inside wall"), areaPath);
-                            GlareMesh.Append(new GH_Mesh(currentProjSource), areaPath);
-                            glareAreas.Append(new GH_Number(AreaMassProperties.Compute(currentProjSource).Area), areaPath);
-
-                            break;
+                        comment.Append(new GH_String("invalid currentprojsource, mesh" + i.ToString() + " sun vector" + j.ToString() + ", the window panel is inside the projected shade or about"),
+                            areaPath);
+                        GlareMesh.Append(null, areaPath);
+                        glareAreas.Append(new GH_Number(0.00), areaPath);
                     }
+                    else
+                    {
 
+
+                        currentProjSource.Transform(currentProjTrans);
+
+
+                        // Define centroid of current projected source
+                        var currentProjOutCentroid = AreaMassProperties.Compute(currentProjSource).Centroid;
+                        var dsjtMeshCount = currentProjSource.DisjointMeshCount;
+
+                        // Convex hull of the mesh vertices
+                        if (!currentProjSource.IsValid)
+                        {
+                            throw new NullReferenceException(
+                                "The projected source mesh is invalid, convexHull fail, shade number: " +
+                                i.ToString() + " ,Sun vector number: " + j.ToString());
+                        }
+                        var convexHullCurve = ConvexHullMesh(currentProjSource, panelPlane);
+
+                        RegionContainment status =
+                            Curve.PlanarClosedCurveRelationship(panelOutline, convexHullCurve, panelPlane, tol);
+
+                        switch (status)
+                        {
+                            case RegionContainment.Disjoint:
+                                comment.Append(new GH_String("Disjoint"), areaPath);
+                                GlareMesh.Append(null, areaPath);
+                                glareAreas.Append(new GH_Number(0.00), areaPath);
+
+                                break;
+
+                            case RegionContainment.MutualIntersection:
+
+
+                                var splitMesh = currentProjSource.Split(meshCutter[0]);
+                                //MshCttr.AppendRange(splitMesh.Select(p => new GH_Mesh(p)), areaPath);
+                                MshCttr.Append(new GH_Mesh(currentProjSource), areaPath);
+                                var minCentroidDistance = 9999.0;
+                                var resultMesh = new Mesh();
+                                for (var index = 0; index < splitMesh.Length; index++)
+                                {
+                                    var tempmesh = splitMesh[index];
+                                    var centroidTempMesh = AreaMassProperties.Compute(tempmesh).Centroid;
+
+                                    var tempDistanceCentroid = (centroidWallPanel - centroidTempMesh).Length;
+                                    if (!(tempDistanceCentroid < minCentroidDistance)) continue;
+                                    minCentroidDistance = tempDistanceCentroid;
+                                    resultMesh = tempmesh;
+
+                                    if (resultMesh.DisjointMeshCount == dsjtMeshCount) continue;
+                                    var dsjtCurrentProjSource = currentProjSource.SplitDisjointPieces();
+                                    foreach (var dsjtmesh in dsjtCurrentProjSource)
+                                    {
+                                        var tempHullCurve = ConvexHullMesh(dsjtmesh, panelPlane);
+                                        if (Curve.PlanarClosedCurveRelationship(panelOutline, tempHullCurve, panelPlane,
+                                                tol) == RegionContainment.BInsideA)
+                                            resultMesh.Append(dsjtmesh);
+                                    }
+                                }
+
+                                var areaResultMesh = AreaMassProperties.Compute(resultMesh).Area;
+                                comment.Append(
+                                    new GH_String(
+                                        "MutualIntersection, intersection of projected source and wall, tempMesh case, " +
+                                        panelOutline.Contains(AreaMassProperties.Compute(resultMesh).Centroid) +
+                                        " , length of splitMesh " + splitMesh.Length.ToString()),
+                                    areaPath);
+                                if (panelOutline.Contains(AreaMassProperties.Compute(resultMesh).Centroid) ==
+                                    PointContainment.Outside)
+                                {
+                                    resultMesh = null;
+                                    areaResultMesh = 0;
+                                }
+                                GlareMesh.Append(new GH_Mesh(resultMesh), areaPath);
+                                glareAreas.Append(new GH_Number(areaResultMesh), areaPath);
+                                break;
+
+                            case RegionContainment.AInsideB:
+                                comment.Append(new GH_String("AInsideB, wall inside convexhull of projected source"),
+                                    areaPath);
+                                GlareMesh.Append(new GH_Mesh(wallPanel), areaPath);
+                                glareAreas.Append(new GH_Number(areaWallPanel), areaPath);
+
+                                break;
+
+                            case RegionContainment.BInsideA:
+                                comment.Append(new GH_String("BInsideA, projected source wholly inside wall"),
+                                    areaPath);
+                                GlareMesh.Append(new GH_Mesh(currentProjSource), areaPath);
+                                glareAreas.Append(new GH_Number(AreaMassProperties.Compute(currentProjSource).Area),
+                                    areaPath);
+
+                                break;
+                        }
+
+                    }
                 }
 
             }
