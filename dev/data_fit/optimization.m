@@ -11,11 +11,19 @@ f3='gh-shade.csv';
 f4='gh-view.csv';
 f5='gh-seasonalCoefficients.csv';
 
+%Reading small files
+%actuation positions size:(number of actuation couples;NDOF)
+%shading coefficients files size:(number of sun vectors;number of
+%parameters for optimization)
 ACT=csvread(f1);
+SC=csvread(f5);
+
+%Reading large files
+%Glare GL, shading SH, view VW of size: (number of shades positions;number of sun vectors) 
 GL=csvread(f2);
 SH=csvread(f3);
 VW=csvread(f4);
-SC=csvread(f5);
+
 
 %% --------------------------------------------------------------------------
 % check for size uniformity, define number of sun vector and criteria
@@ -30,6 +38,7 @@ nc=3; %number of criteria for the optimization
 nact=size(ACT,1);
 ndof=size(ACT,2);
 
+%the crit matrix stores the values of each parameter
 crit(:,:,1)=SH;
 crit(:,:,2)=GL;
 crit(:,:,3)=VW;
