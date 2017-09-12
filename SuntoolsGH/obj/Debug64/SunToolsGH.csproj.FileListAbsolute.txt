@@ -21,7 +21,6 @@ C:\Users\victor\AppData\Roaming\Grasshopper\Libraries\SunTools.dll
 C:\Users\victor\AppData\Roaming\Grasshopper\Libraries\SunTools.pdb
 C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.dll
 C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.pdb
-C:\Users\victor\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunToolsGH.csprojResolveAssemblyReference.cache
 C:\Users\Victor Charpentier\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunToolsGH.csprojResolveAssemblyReference.cache
 C:\Users\Victor Charpentier\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunToolsGH.csproj.CoreCompileInputs.cache
 C:\Users\Victor Charpentier\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.dll
