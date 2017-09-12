@@ -36,7 +36,7 @@ fcrit_opt=zeros(nsun,ncrit);
 obj_opt=[];
 
 
-X0=[70,1];
+X0=[35,0.5];
 lb = [0,0];
 ub = [70,1];
 A_bal = [];
