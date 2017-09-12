@@ -49,7 +49,7 @@ end
 
 act_opt=zeros(nsun,ndof,ncomb);
 fcrit_opt=zeros(nsun,ncrit,ncomb);
-obj_opt=zeros(nsun,ncombs);
+obj_opt=zeros(nsun,ncomb);
 
 
 X0=[35,0.5];
