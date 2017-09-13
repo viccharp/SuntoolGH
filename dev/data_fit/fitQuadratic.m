@@ -6,30 +6,30 @@ clear all
 %% --------------------------------------------------------------------------
 % read input files
 f1='gh-actuation.csv';
-f2='gh-glare.csv';
-f3='gh-shade.csv';
+f2='gh-deskGlare.csv';
+f3='gh-solarGain.csv';
 f4='gh-view.csv';
-f5='gh-seasonalCoefficients.csv';
+% f5='gh-seasonalCoefficients.csv';
 
 %Reading small files
 %actuation positions size:(number of actuation couples;NDOF)
 %shading coefficients files size:(number of sun vectors;number of
 %parameters for optimization)
 ACT=csvread(f1);
-SC=csvread(f5);
+% SC=csvread(f5);
 
 %Reading large files
 %Glare GL, shading SH, view VW of size: (number of shades positions;number of sun vectors)
-GL=csvread(f2);
-SH=csvread(f3);
+DGL=csvread(f2);
+SG=csvread(f3);
 VW=csvread(f4);
 
 
 %% --------------------------------------------------------------------------
 % check for size uniformity, define number of sun vector and criteria
 % matrix
-if (size(SH,2)==size(GL,2))&&(size(SH,2)==size(VW,2))
-    ns=size(SH,2);
+if (size(SG,2)==size(DGL,2))&&(size(SG,2)==size(VW,2))
+    ns=size(SG,2);
 else
     error('error in number of sun vectors in input')
 end
@@ -39,8 +39,8 @@ nact=size(ACT,1);
 ndof=size(ACT,2);
 
 %the crit matrix stores the values of each parameter
-crit(:,:,1)=SH;
-crit(:,:,2)=GL;
+crit(:,:,1)=SG;
+crit(:,:,2)=DGL;
 crit(:,:,3)=VW;
 
 maxscale=max(crit(:,1,3));
@@ -59,6 +59,8 @@ el=45;
 
 disp('Quadratic function fitting started');
 
+tic
+ticBytes(gcp);
 for i=1:ns
 
     disp(i);
@@ -101,7 +103,7 @@ for i=1:ns
         view(az,el)
 %         ylabel('Extension (%)')
 %         xlabel('Angle (�)')
-%         zlabel('Normalized Shade (m2/m2)')
+%         zlabel('Solar Gains (W/m2)')
         hold on
 
         %
@@ -111,7 +113,7 @@ for i=1:ns
 %         view(az,el)
 %         ylabel('Extension (%)')
 %         xlabel('Angle (�)')
-%         zlabel('Normalized Glare (m2/m2)')
+%         zlabel('Desk Glare (m2/m2)')
         hold on
 
         %
@@ -121,7 +123,7 @@ for i=1:ns
 %         view(az,el)
 %         ylabel('Extension (%)')
 %         xlabel('Angle (�)')
-%         zlabel('Normalized Shade (m2/m2)')
+%         zlabel('View (m2/m2)')
         hold on
 
 
@@ -133,7 +135,7 @@ for i=1:ns
         view(az,el)
         ylabel('Extension (%)')
         xlabel('Angle (�)')
-        zlabel('Normalized Shade (m2/m2)')
+        zlabel('Solar Gains (W/m2)')
 
         %
         subplot(3,1,2);
@@ -143,7 +145,7 @@ for i=1:ns
         view(az,el)
         ylabel('Extension (%)')
         xlabel('Angle (�)')
-        zlabel('Normalized Glare (m2/m2)')
+        zlabel('Desk Glare (m2/m2)')
 
         %
         subplot(3,1,3);
@@ -153,10 +155,12 @@ for i=1:ns
         view(az,el)
         ylabel('Extension (%)')
         xlabel('Angle (�)')
-        zlabel('Normalized Shade (m2/m2)')
+        zlabel('View (m2/m2)')
      end
 
 end
+tocBytes(gcp);
+toc
 
 % Store the result of the quadratic function fit into a csv file
 csvwrite('fitQuad.csv',c_opt);
