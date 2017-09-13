@@ -27,3 +27,4 @@ C:\Users\Victor Charpentier\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\Su
 C:\Users\Victor Charpentier\Documents\GitHub\SuntoolGH\SunToolsGH\obj\Debug64\SunTools.pdb
 C:\Users\Victor Charpentier\AppData\Roaming\Grasshopper\Libraries\SunTools.dll
 C:\Users\Victor Charpentier\AppData\Roaming\Grasshopper\Libraries\SunTools.pdb
+C:\Users\Victor Charpentier\AppData\Roaming\Grasshopper\Libraries\SunTools.dll.config
