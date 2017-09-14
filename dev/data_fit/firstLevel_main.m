@@ -44,6 +44,7 @@ end
 
 act_opt=zeros(nsun,ndof,ncomb);
 obj_opt=zeros(nsun,ncomb);
+fcrit_opt=zeros(nsun,ncrit,ncomb);
 
 
 X0=[35,0.5];
