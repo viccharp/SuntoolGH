@@ -77,7 +77,7 @@ tocBytes(gcp);
 toc
 %%
 csvwrite('outMatlab.csv',act_opt);
-
+csvwrite('optValCriteria.csv',fcrit_opt);
 
 
 
