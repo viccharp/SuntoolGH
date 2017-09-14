@@ -123,12 +123,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Auxilaries\RegionInter.cs" />
-    <Compile Include="Component\SeasonCoefGrid.cs" />
-    <Compile Include="Component\SeasonCoef_lerp.cs" />
+    <Compile Include="Component\ConstraintParam.cs" />
+    <Compile Include="phazingOut\SeasonCoefGrid.cs" />
+    <Compile Include="phazingOut\SeasonCoef_lerp.cs" />
     <Compile Include="Vertex2D.cs" />
     <Compile Include="Vertex.cs" />
     <Compile Include="Component\GlareAssess.cs" />
-    <Compile Include="Component\SeasonCoef.cs" />
+    <Compile Include="phazingOut\SeasonCoef.cs" />
     <Compile Include="Component\ShadeAssess.cs" />
     <Compile Include="Auxilaries\RegionDiff.cs" />
     <Compile Include="Component\SunSifting.cs" />

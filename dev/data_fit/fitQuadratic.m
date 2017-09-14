@@ -60,7 +60,7 @@ el=45;
 disp('Quadratic function fitting started');
 
 tic
-ticBytes(gcp);
+
 for i=1:ns
 
     disp(i);
@@ -159,7 +159,7 @@ for i=1:ns
      end
 
 end
-tocBytes(gcp);
+
 toc
 
 % Store the result of the quadratic function fit into a csv file
