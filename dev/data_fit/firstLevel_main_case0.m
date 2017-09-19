@@ -1,4 +1,6 @@
-
+%% descrption of the case
+% in this case, solargain only are optimized, the optimization is
+% unconstrained
 
 %% ------------------------------------------------------------------------
 % define input files
@@ -53,7 +55,7 @@ obj_opt=zeros(nsun,ncomb);
 fcrit_opt=zeros(nsun,ncrit,ncomb);
 
 
-X0=[0,0];
+X0=[70,1];
 lb = [0,0];
 ub = [70,1];
 A_bal = [];
@@ -68,11 +70,11 @@ parfor i=1:ncomb
         
         fun=@(x)(kro(j)*fcrit(c_opt(:,j,1),x(1),x(2)));
    
-        a=parameterCond(j,:,i);
-        qf=c_opt(:,j,2:3);
-        kron=kro(j);
-        nonlcon=@(x)nlcon(x,a,qf,kron);
-        x = fmincon(fun,X0,A_bal,b_bal,Aeq_bal,beq_bal,lb,ub,nonlcon);
+%         a=parameterCond(j,:,i);
+%         qf=c_opt(:,j,2:3);
+%         kron=kro(j);
+%         nonlcon=@(x)nlcon(x,a,qf,kron);
+        x = fmincon(fun,X0,A_bal,b_bal,Aeq_bal,beq_bal,lb,ub);
         
         
         act_opt(j,:,i)=x(1,:);
@@ -83,8 +85,8 @@ end
 tocBytes(gcp);
 toc
 %%
-csvwrite('outMatlab.csv',act_opt);
-csvwrite('optValCriteria.csv',fcrit_opt);
+csvwrite('outMatlabc0.csv',act_opt);
+csvwrite('optValCriteriac0.csv',fcrit_opt);
 
 
 

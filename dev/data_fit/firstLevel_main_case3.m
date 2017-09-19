@@ -1,4 +1,6 @@
-
+%% descrption of the case
+% in this case, the sum of glare and solargains are optimized, the optimization is
+% constrained by the view
 
 %% ------------------------------------------------------------------------
 % define input files
@@ -13,8 +15,14 @@ f3='gh-permKron.csv';
 c=csvread(f1);
 fit_quad=csvread(f2);
 kro=csvread(f3);
+krogl=zeros(size(kro,1));
+for i=1:size(kro,1)
+    if kro(i)>0
+        krogl(i)=1;
+    end
+end
 
-nsun=2386;
+nsun=size(kro,1);
 ncrit=size(fit_quad,2)/nsun;
 ndof=2;
 ncomb=size(c,1)/nsun;
@@ -44,9 +52,10 @@ end
 
 act_opt=zeros(nsun,ndof,ncomb);
 obj_opt=zeros(nsun,ncomb);
+fcrit_opt=zeros(nsun,ncrit,ncomb);
 
 
-X0=[35,0.5];
+X0=[70,1];
 lb = [0,0];
 ub = [70,1];
 A_bal = [];
@@ -55,15 +64,14 @@ Aeq_bal = [];
 beq_bal = [];
 %%
 tic
-addAttachedFiles(gcp,{'nlcon.m'})
 ticBytes(gcp);
 parfor i=1:ncomb
     for j=1:nsun
         
-        fun=@(x)kro(j)*fcrit(c_opt(:,j,1),x(1),x(2));
+        fun=@(x)(kro(j)*fcrit(c_opt(:,j,1),x(1),x(2))+krogl(j)*fcrit(c_opt(:,j,3),x(1),x(2)));
    
         a=parameterCond(j,:,i);
-        qf=c_opt(:,j,1);
+        qf=c_opt(:,j,2:3);
         kron=kro(j);
         nonlcon=@(x)nlcon(x,a,qf,kron);
         x = fmincon(fun,X0,A_bal,b_bal,Aeq_bal,beq_bal,lb,ub,nonlcon);
@@ -77,8 +85,8 @@ end
 tocBytes(gcp);
 toc
 %%
-csvwrite('outMatlab.csv',act_opt);
-
+csvwrite('outMatlabc3.csv',act_opt);
+csvwrite('optValCriteriac3.csv',fcrit_opt);
 
 
 

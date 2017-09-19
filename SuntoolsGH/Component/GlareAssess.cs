@@ -208,11 +208,11 @@ namespace SunTools.Component
                                 break;
 
                             case RegionContainment.AInsideB:
-                                comment.Append(new GH_String("AInsideB, wall inside convexhull of projected source"),
+                                comment.Append(
+                                    new GH_String("AInsideB, wall inside convexhull of projected source"),
                                     areaPath);
                                 GlareMesh.Append(new GH_Mesh(wallPanel), areaPath);
                                 glareAreas.Append(new GH_Number(areaWallPanel), areaPath);
-
                                 break;
 
                             case RegionContainment.BInsideA:

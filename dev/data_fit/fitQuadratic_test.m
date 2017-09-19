@@ -53,6 +53,7 @@ crit(:,:,3)=DGL;
 %coefficients of the quadratic function a1+a2*x+a3*y+a4*x^2+a5*x*y+a6*y^2
 c_opt=zeros(6,ns,ncrit);
 
+%plot parameters
 plotfigs=false;
 az=135;
 el=45;
@@ -70,6 +71,8 @@ for i=1:ns
     variables a(6,1)
     minimize (sum((crit(:,i,1)-a(1)-a(2)*ACT(:,1)-a(3)*ACT(:,2)-a(4)*ACT(:,1).^2-a(5)*ACT(:,1).*ACT(:,2)-a(6)*ACT(:,2).*ACT(:,2)).^2))
     [a(4) a(5)/2; a(5)/2 a(6)]==semidefinite(2);
+    subject to 
+        a(1)+a(2)*ACT(:,1)+a(3)*ACT(:,2)+a(4)*ACT(:,1).^2+a(5)*ACT(:,1).*ACT(:,2)+a(6)*ACT(:,2).*ACT(:,2)>=0;
     cvx_end
     c_opt(:,i,1)=a(:,1);
     a(:,1)=zeros(6,1);
@@ -79,7 +82,8 @@ for i=1:ns
     variables a(6,1)
     minimize (sum((crit(:,i,2)-a(1)-a(2)*ACT(:,1)-a(3)*ACT(:,2)-a(4)*ACT(:,1).^2-a(5)*ACT(:,1).*ACT(:,2)-a(6)*ACT(:,2).*ACT(:,2)).^2))
     [a(4) a(5)/2; a(5)/2 a(6)]==semidefinite(2);
-    
+    subject to 
+        a(1)+a(2)*ACT(:,1)+a(3)*ACT(:,2)+a(4)*ACT(:,1).^2+a(5)*ACT(:,1).*ACT(:,2)+a(6)*ACT(:,2).*ACT(:,2)>=0;
     cvx_end
     c_opt(:,i,2)=a(:,1);
     a(:,1)=zeros(6,1);
@@ -89,12 +93,14 @@ for i=1:ns
     variables a(6,1)
     minimize (sum((crit(:,i,3)-a(1)-a(2)*ACT(:,1)-a(3)*ACT(:,2)-a(4)*ACT(:,1).^2-a(5)*ACT(:,1).*ACT(:,2)-a(6)*ACT(:,2).*ACT(:,2)).^2))
     [a(4) a(5)/2; a(5)/2 a(6)]==semidefinite(2);
+    subject to 
+        a(1)+a(2)*ACT(:,1)+a(3)*ACT(:,2)+a(4)*ACT(:,1).^2+a(5)*ACT(:,1).*ACT(:,2)+a(6)*ACT(:,2).*ACT(:,2)>=0;
     cvx_end
     c_opt(:,i,3)=a(:,1);
     a(:,1)=zeros(6,1);
 
     if plotfigs
-        fig='figure '+num2str(i);
+        %fig='figure '+num2str(i);
         Fig=figure;
 
         %
@@ -164,7 +170,7 @@ end
 toc
 
 % Store the result of the quadratic function fit into a csv file
-csvwrite('fitQuad.csv',c_opt);
+csvwrite('fitQuad-pos.csv',c_opt);
 
 %% ------------------------------------------------------------------------
 % R-squared
@@ -198,47 +204,47 @@ for j=1:ncrit
     end
 end
 
-%% Max min of the fitted functions for scaling
-mm=zeros(ncrit,2,ns);
-ninter=500;
-inter1=(70-0)/ninter;
-inter2=(1-0)/ninter;
-maxAct=zeros(ncrit,2,ns);
-minAct=zeros(ncrit,2,ns);
-for k=1:ns
-    for i=1:ncrit
-        max=-9990;
-        min=9990;
-        %         syms x;
-        %         syms y;
-        %         fun=@(x,y)fcrit(c_opt(:,k,i),x,y);
-        %
-        %         mm(i,1,k)=min(double(fun));
-        %         %mm(i,2,k)=
-        
-        for j=1:ninter
-            for m=1:ninter
-                current_val=fcrit(c_opt(:,k,i),inter1*j,inter2*m);
-                if current_val>max
-                    max=current_val;
-                    maxAct(i,1,k)=inter1*j;
-                    maxAct(i,2,k)=inter2*j;
-                end
-                if current_val<min
-                    min=current_val;
-                    minAct(i,1,k)=inter1*j;
-                    minAct(i,2,k)=inter2*j;
-                end
-            end
-        end
-        mm(i,1,k)=min;
-        mm(i,2,k)=max;
-    end
-end
-
-csvwrite('bounds.csv',mm);
-    
-    
+% %% Max min of the fitted functions for scaling
+% mm=zeros(ncrit,2,ns);
+% ninter=500;
+% inter1=(70-0)/ninter;
+% inter2=(1-0)/ninter;
+% maxAct=zeros(ncrit,2,ns);
+% minAct=zeros(ncrit,2,ns);
+% for k=1:ns
+%     for i=1:ncrit
+%         max=-9990;
+%         min=9990;
+%         %         syms x;
+%         %         syms y;
+%         %         fun=@(x,y)fcrit(c_opt(:,k,i),x,y);
+%         %
+%         %         mm(i,1,k)=min(double(fun));
+%         %         %mm(i,2,k)=
+%         
+%         for j=1:ninter
+%             for m=1:ninter
+%                 current_val=fcrit(c_opt(:,k,i),inter1*j,inter2*m);
+%                 if current_val>max
+%                     max=current_val;
+%                     maxAct(i,1,k)=inter1*j;
+%                     maxAct(i,2,k)=inter2*j;
+%                 end
+%                 if current_val<min
+%                     min=current_val;
+%                     minAct(i,1,k)=inter1*j;
+%                     minAct(i,2,k)=inter2*j;
+%                 end
+%             end
+%         end
+%         mm(i,1,k)=min;
+%         mm(i,2,k)=max;
+%     end
+% end
+% 
+% csvwrite('bounds.csv',mm);
+%     
+%     
 
 
 
