@@ -2,4 +2,5 @@
 	<s:String x:Key="/Default/Environment/AssemblyExplorer/XmlDocument/@EntryValue">&lt;AssemblyExplorer&gt;&#xD;
   &lt;Assembly Path="C:\Users\Victor Charpentier\AppData\Roaming\Grasshopper\Libraries\IvyGh.dll" /&gt;&#xD;
   &lt;Assembly Path="C:\Users\Victor Charpentier\AppData\Roaming\Grasshopper\Libraries\IvyCore.dll" /&gt;&#xD;
+  &lt;Assembly Path="C:\Users\Victor Charpentier\AppData\Roaming\Grasshopper\Libraries\ClipperTools.dll" /&gt;&#xD;
 &lt;/AssemblyExplorer&gt;</s:String></wpf:ResourceDictionary>

@@ -83,6 +83,10 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="ClipperTools, Version=0.0.2.1, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\AppData\Roaming\Grasshopper\Libraries\ClipperTools.dll</HintPath>
+    </Reference>
     <Reference Include="IvyCore, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\AppData\Roaming\Grasshopper\Libraries\IvyCore.dll</HintPath>
@@ -90,9 +94,6 @@
     <Reference Include="IvyGh, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\AppData\Roaming\Grasshopper\Libraries\IvyGh.dll</HintPath>
-    </Reference>
-    <Reference Include="MIConvexHull.NET4.5, Version=1.0.17.411, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\MIConvexHull.1.1.17.0911\lib\portable-net45+win8\MIConvexHull.NET4.5.dll</HintPath>
     </Reference>
     <Reference Include="RhinoCommon, Version=5.1.30000.17, Culture=neutral, PublicKeyToken=552281e97c755530, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -124,6 +125,7 @@
   <ItemGroup>
     <Compile Include="Auxilaries\RegionInter.cs" />
     <Compile Include="Component\ConstraintParam.cs" />
+    <Compile Include="Component\ShadeAssessPC.cs" />
     <Compile Include="phazingOut\SeasonCoefGrid.cs" />
     <Compile Include="phazingOut\SeasonCoef_lerp.cs" />
     <Compile Include="Vertex2D.cs" />

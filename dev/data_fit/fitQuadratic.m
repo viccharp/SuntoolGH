@@ -70,6 +70,9 @@ for i=1:ns
     variables a(6,1)
     minimize (sum((crit(:,i,1)-a(1)-a(2)*ACT(:,1)-a(3)*ACT(:,2)-a(4)*ACT(:,1).^2-a(5)*ACT(:,1).*ACT(:,2)-a(6)*ACT(:,2).*ACT(:,2)).^2))
     [a(4) a(5)/2; a(5)/2 a(6)]==semidefinite(2);
+    subject to 
+        a(1)+a(2)*ACT(:,1)+a(3)*ACT(:,2)+a(4)*ACT(:,1).^2+a(5)*ACT(:,1).*ACT(:,2)+a(6)*ACT(:,2).*ACT(:,2)>=0;
+        
     cvx_end
     c_opt(:,i,1)=a(:,1);
     a(:,1)=zeros(6,1);
@@ -79,7 +82,9 @@ for i=1:ns
     variables a(6,1)
     minimize (sum((crit(:,i,2)-a(1)-a(2)*ACT(:,1)-a(3)*ACT(:,2)-a(4)*ACT(:,1).^2-a(5)*ACT(:,1).*ACT(:,2)-a(6)*ACT(:,2).*ACT(:,2)).^2))
     [a(4) a(5)/2; a(5)/2 a(6)]==semidefinite(2);
-    
+    subject to 
+        a(1)+a(2)*ACT(:,1)+a(3)*ACT(:,2)+a(4)*ACT(:,1).^2+a(5)*ACT(:,1).*ACT(:,2)+a(6)*ACT(:,2).*ACT(:,2)>=0;
+        a(1)+a(2)*ACT(:,1)+a(3)*ACT(:,2)+a(4)*ACT(:,1).^2+a(5)*ACT(:,1).*ACT(:,2)+a(6)*ACT(:,2).*ACT(:,2)<=1;
     cvx_end
     c_opt(:,i,2)=a(:,1);
     a(:,1)=zeros(6,1);
@@ -89,82 +94,19 @@ for i=1:ns
     variables a(6,1)
     minimize (sum((crit(:,i,3)-a(1)-a(2)*ACT(:,1)-a(3)*ACT(:,2)-a(4)*ACT(:,1).^2-a(5)*ACT(:,1).*ACT(:,2)-a(6)*ACT(:,2).*ACT(:,2)).^2))
     [a(4) a(5)/2; a(5)/2 a(6)]==semidefinite(2);
+    subject to 
+        a(1)+a(2)*ACT(:,1)+a(3)*ACT(:,2)+a(4)*ACT(:,1).^2+a(5)*ACT(:,1).*ACT(:,2)+a(6)*ACT(:,2).*ACT(:,2)>=0;
+        a(1)+a(2)*ACT(:,1)+a(3)*ACT(:,2)+a(4)*ACT(:,1).^2+a(5)*ACT(:,1).*ACT(:,2)+a(6)*ACT(:,2).*ACT(:,2)<=1;
     cvx_end
     c_opt(:,i,3)=a(:,1);
     a(:,1)=zeros(6,1);
-
-    if plotfigs
-        fig='figure '+num2str(i);
-        Fig=figure;
-
-        %
-        subplot(3,1,1);
-        scatter3(ACT(:,1),ACT(:,2),crit(:,i,1),'MarkerFaceColor',[0 .75 .75])
-        axis([0 70 0 1 0 8])
-        view(az,el)
-%         ylabel('Extension (%)')
-%         xlabel('Angle (�)')
-%         zlabel('Solar Gains (W/m2)')
-        hold on
-
-        %
-        subplot(3,1,2);
-        scatter3(ACT(:,1),ACT(:,2),crit(:,i,2),'MarkerFaceColor',[0 .75 .75])
-        axis([0 70 0 1 0 1])
-%         view(az,el)
-%         ylabel('Extension (%)')
-%         xlabel('Angle (�)')
-%         zlabel('View (m2/m2)')
-        hold on
-
-        %
-        subplot(3,1,3);
-        scatter3(ACT(:,1),ACT(:,2),crit(:,i,3),'MarkerFaceColor',[0 .75 .75])
-        axis([0 70 0 1 0 1])
-%         view(az,el)
-%         ylabel('Extension (%)')
-%         xlabel('Angle (�)')
-%         zlabel('Desk Glare (m2/m2)')
-        hold on
-
-
-        %
-        subplot(3,1,1);
-        syms x; syms y;ezsurf(c_opt(1,i,1)+c_opt(2,i,1)*x+c_opt(3,i,1)*y+c_opt(4,i,1)*x^2+c_opt(5,i,1)*x*y+c_opt(6,i,1)*y*y,[0,70],[0,1]);
-        title('Solar Gains')
-        axis([0 70 0 1 0 8])
-        view(az,el)
-        ylabel('Extension (%)')
-        xlabel('Angle (�)')
-        zlabel('Solar Gains (W/m2)')
-
-        %
-        subplot(3,1,2);
-        syms x; syms y;ezsurf(c_opt(1,i,2)+c_opt(2,i,2)*x+c_opt(3,i,2)*y+c_opt(4,i,2)*x^2+c_opt(5,i,2)*x*y+c_opt(6,i,2)*y*y,[0,70],[0,1]);
-        title('View')
-        axis([0 70 0 1 0 1])
-        view(az,el)
-        ylabel('Extension (%)')
-        xlabel('Angle (�)')
-        zlabel('View (m2/m2)')
-
-        %
-        subplot(3,1,3);
-        syms x; syms y;ezsurf(c_opt(1,i,3)+c_opt(2,i,3)*x+c_opt(3,i,3)*y+c_opt(4,i,3)*x^2+c_opt(5,i,3)*x*y+c_opt(6,i,3)*y*y,[0,70],[0,1]);
-        title('Desk Glare')
-        axis([0 70 0 1 0 1])
-        view(az,el)
-        ylabel('Extension (%)')
-        xlabel('Angle (�)')
-        zlabel('Desk Glare (m2/m2)')
-     end
 
 end
 
 toc
 
-% Store the result of the quadratic function fit into a csv file
-csvwrite('fitQuad.csv',c_opt);
+% % Store the result of the quadratic function fit into a csv file
+% csvwrite('fitQuad.csv',c_opt);
 
 %% ------------------------------------------------------------------------
 % R-squared
@@ -198,46 +140,63 @@ for j=1:ncrit
     end
 end
 
-%% Max min of the fitted functions for scaling
-mm=zeros(ncrit,2,ns);
-ninter=500;
-inter1=(70-0)/ninter;
-inter2=(1-0)/ninter;
-maxAct=zeros(ncrit,2,ns);
-minAct=zeros(ncrit,2,ns);
-for k=1:ns
-    for i=1:ncrit
-        max=-9990;
-        min=9990;
-        %         syms x;
-        %         syms y;
-        %         fun=@(x,y)fcrit(c_opt(:,k,i),x,y);
-        %
-        %         mm(i,1,k)=min(double(fun));
-        %         %mm(i,2,k)=
-        
-        for j=1:ninter
-            for m=1:ninter
-                current_val=fcrit(c_opt(:,k,i),inter1*j,inter2*m);
-                if current_val>max
-                    max=current_val;
-                    maxAct(i,1,k)=inter1*j;
-                    maxAct(i,2,k)=inter2*j;
-                end
-                if current_val<min
-                    min=current_val;
-                    minAct(i,1,k)=inter1*j;
-                    minAct(i,2,k)=inter2*j;
-                end
-            end
-        end
-        mm(i,1,k)=min;
-        mm(i,2,k)=max;
+%% 
+
+for i=1:size(R2(3,:),2)
+    if R2(3,i)<0
+        R2(3,i)=0;
     end
 end
+%% 
+[llr,illr]=LowR2List(R2,0.80,3);
+mr23=mean(R2(3,:))
+sdr23=std(R2(3,:))
+qtr23=quantile(R2(3,:),0.8795)
+mdr23=median(R2(3,:))
 
-csvwrite('bounds.csv',mm);
-    
+
+%% 
+
+% %% Max min of the fitted functions for scaling
+% mm=zeros(ncrit,2,ns);
+% ninter=1000;
+% inter1=(70-0)/ninter;
+% inter2=(1-0)/ninter;
+% maxAct=zeros(ncrit,2,ns);
+% minAct=zeros(ncrit,2,ns);
+% for k=1:ns
+%     for i=1:ncrit
+%         max=-9990;
+%         min=9990;
+%         %         syms x;
+%         %         syms y;
+%         %         fun=@(x,y)fcrit(c_opt(:,k,i),x,y);
+%         %
+%         %         mm(i,1,k)=min(double(fun));
+%         %         %mm(i,2,k)=
+%         
+%         for j=1:ninter
+%             for m=1:ninter
+%                 current_val=fcrit(c_opt(:,k,i),inter1*j,inter2*m);
+%                 if current_val>max
+%                     max=current_val;
+%                     maxAct(i,1,k)=inter1*j;
+%                     maxAct(i,2,k)=inter2*j;
+%                 end
+%                 if current_val<min
+%                     min=current_val;
+%                     minAct(i,1,k)=inter1*j;
+%                     minAct(i,2,k)=inter2*j;
+%                 end
+%             end
+%         end
+%         mm(i,1,k)=min;
+%         mm(i,2,k)=max;
+%     end
+% end
+% 
+% csvwrite('bounds.csv',mm);
+%     
     
 
 
