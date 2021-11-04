@@ -4,4 +4,4 @@ A Rhino3D/Grasshopper project to analyze free-form shading geometries for energy
 
 This is a Work In Progress.
 
-For more information contact vc6@princeton.edu
+For more information contact vc6@alumni.princeton.edu
